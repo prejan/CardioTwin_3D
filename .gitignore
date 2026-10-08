@@ -1,0 +1,12 @@
+venv/
+__pycache__/
+*.pyc
+*.pkl
+*.joblib
+data/raw.csv
+data/processed/
+models/*.pkl
+models/*.json
+node_modules/
+frontend/dist/
+.env
