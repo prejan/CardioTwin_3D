@@ -1,0 +1,30 @@
+{
+  "CAD": {
+    "accuracy": 0.881,
+    "precision": 0.892,
+    "recall": 0.949,
+    "f1": 0.92,
+    "roc_auc": 0.93
+  },
+  "LAD": {
+    "accuracy": 0.789,
+    "precision": 0.792,
+    "recall": 0.87,
+    "f1": 0.828,
+    "roc_auc": 0.851
+  },
+  "LCX": {
+    "accuracy": 0.667,
+    "precision": 0.647,
+    "recall": 0.362,
+    "f1": 0.45,
+    "roc_auc": 0.733
+  },
+  "RCA": {
+    "accuracy": 0.667,
+    "precision": 0.713,
+    "recall": 0.298,
+    "f1": 0.391,
+    "roc_auc": 0.727
+  }
+}
