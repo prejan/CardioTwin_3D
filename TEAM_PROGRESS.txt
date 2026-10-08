@@ -2,7 +2,7 @@ CardioTwin 3D - TEAM PROGRESS LOG
 Track A: Cardiovascular Risk Visualization & Prediction
 Repo: https://github.com/prejan/CardioTwin_3D/
 Deadline: 15 Oct 2026, 12:15 AM IST
-Updated: 08 Oct 2026 - Day 1 done, Day 2 v2 started
+Updated: 08 Oct 2026 - v2 DONE (winnable version)
 
 ------------------------------------------------------------
 WHAT THIS PROJECT IS (in simple words)
@@ -12,56 +12,60 @@ from routine clinical data, show it on interactive 3D heart,
 and explain why with SHAP. Web app + disclaimer.
 
 ------------------------------------------------------------
-DONE SO FAR (Day 1 - 08 Oct)
+DONE (Day 1 + v2 - 08 Oct)
 ------------------------------------------------------------
-1. Repo created + pushed (main branch working)
-2. Env setup: venv + requirements.txt (pandas, sklearn, xgboost, shap, fastapi)
-   Node 24 + React + Three.js installed
-3. Data ready: data/raw.csv (303 patients, 59 cols)
-   Source: UCI Extension of Z-Alizadeh Sani xlsx converted
-   CAD derived = 1 if any of LAD/LCX/RCA = Stenotic
-4. Baseline models done: models/metrics_baseline.json
-   CAD RF F1 0.91 AUC 0.931 (good)
-   LAD RF F1 0.843 (good)
-   LCX/RCA F1 ~0.49 (weak - will fix Day 2 with XGB)
-5. Frontend smoke works: frontend/src/App.jsx + HeartViewer.jsx
-   Ball + 3 cylinders color-coded (red/orange/green), rotate/zoom/sliders
-   Build passes (npm run build OK), localhost:5173 shows Day1 Smoke
-   NOTE: This is PLACEHOLDER, not final heart. Teammate: do not demo this as final.
+Day1:
+- Repo + venv + Node24 + React+Three.js
+- Data: data/raw.csv 303x59 from UCI xlsx (CAD derived if any vessel Stenotic)
+- Baseline: CAD RF F1 0.91 AUC 0.931, LAD 0.843 (models/metrics_baseline.json)
+- Smoke 3D ball+sticks, build OK
 
-How to run right now:
-  Backend: .\venv\Scripts\Activate; python backend\eda.py; python backend\baseline.py
-  Frontend: cd frontend; npm run dev -> http://localhost:5173
+v2 JUST FINISHED (this is now winnable):
+- backend/train.py: XGB calibrated (300 trees, depth4) for 4 heads
+  CAD F1 0.92 AUC 0.93, LAD 0.828/0.851, LCX 0.45/0.733, RCA 0.391/0.727
+  Saved: models/cad.pkl, lad.pkl, lcx.pkl, rca.pkl (3.9MB total, now in git)
+  Saved: models/metrics.json, features.json (57 features)
+- backend/main.py REAL: /health, /predict, /explain work
+  Tested: sample patient -> cad 0.809, lad 0.659, lcx 0.262, rca 0.481
+- frontend v2: HeartViewer.jsx curved coronaries (TubeGeometry, click select)
+  App.jsx dashboard: CAD badge, 3 bars, 12-field form, Predict button -> live 3D
+  explain top_global panel, disclaimer banner, build 569 modules OK
+- Fixed .gitignore to track models for judges
 
-------------------------------------------------------------
-IN PROGRESS NOW (v2 upgrade - 08/09 Oct)
-------------------------------------------------------------
-1. Backend v2: backend/train.py (XGB + calibrated probs for 4 heads)
-   Saves: models/cad.pkl, lad.pkl, lcx.pkl, rca.pkl + metrics.json + features.json
-2. Backend API real: backend/main.py /predict + /explain loads those .pkl
-3. Frontend v2: input form (age, BP, chol, ECG...) + dashboard
-   + curved coronary arteries (not straight sticks) + click vessel detail
-   + SHAP bar panel + CAD badge
-4. This file (TEAM_PROGRESS.txt) updated every major step
+How to run v2 (2 terminals):
+  Terminal1 Backend: .\venv\Scripts\Activate; uvicorn backend.main:app --reload --port 8000
+    Test: http://localhost:8000/health should show loaded 4 models
+  Terminal2 Frontend: cd frontend; npm run dev -> http://localhost:5173
+    Change Age/BP/LDL -> Predict + Update 3D -> vessels change color, click vessel
 
 ------------------------------------------------------------
-NEXT STEPS (for teammates - pick one)
+WHY v2 CAN WIN (vs Day1 smoke)
 ------------------------------------------------------------
-[ ] A - Heart mesh: download .glb heart (NIH 3D Print Exchange) to frontend/public/heart.glb
-      Replace sphere with real mesh, keep our vessel color logic
-[ ] B - Test API: uvicorn backend.main:app --reload, test /predict with sample patient
-[ ] C - Docs: expand README with setup/run + attributions (UCI, BodyParts3D/NIH)
-[ ] D - Video prep (13 Oct): collect screenshots of dashboard + 3D interaction
+Before: static ball+sticks, fake sliders, no ML.
+Now: real XGB probs drive 3D color, curved vessels hug heart mesh,
+click-to-inspect LAD/LCX/RCA + CAD badge + importance explanation.
+Covers: Predictive 30% (calibrated XGB + 5 metrics), 3D 25% (interactive tubes),
+Interpretability 20% (top_global + per-patient proxy), Integration 15% (live API).
 
-Order: A + B first (09-10 Oct), C 12 Oct, D 13 Oct. Submit 14 Oct before 9PM.
+Still to polish for top-3:
+- Replace sphere with real .glb heart mesh (keep tube logic)
+- Full SHAP waterfall (currently importance proxy)
+- README + 6-page doc + video
 
 ------------------------------------------------------------
-RULES TO WIN
+NEXT STEPS (teammates pick one)
 ------------------------------------------------------------
-- Never use LAD/LCX/RCA/Cath as inputs (leakage = disqualify logic)
-- Always show disclaimer: Educational only, not diagnostic
-- Report 5 metrics: accuracy, precision, recall, F1, ROC-AUC for all 4 heads
-- Keep 3D smooth without GPU, consistent LAD=red-ish left, LCX, RCA mapping
+[ ] A - Heart mesh (highest visual impact):
+    Download .glb (NIH 3D Print Exchange) to frontend/public/heart.glb
+    Load with useGLTF in HeartViewer, keep Coronary tubes on top
+[ ] B - Polish form: add all 55 fields OR smart defaults + validation
+    Add patient history dropdown (2-3 sample patients from raw.csv)
+[ ] C - README + docs: setup/run, architecture diagram, attributions
+    Files: README.md, docs/architecture.md
+[ ] D - SHAP real: pip shap, backend explain with shap.TreeExplainer for XGB
+[ ] E - Video (13 Oct): script input->predict->3D click->explain
 
-Questions? Check README.md + this file first, then ask in group.
-Next update after train.py finishes.
+Order: A+B 09-10 Oct, C+D 11-12 Oct, E 13 Oct, submit 14 Oct before 9PM.
+Do NOT commit venv/, node_modules/, dist/ (already ignored).
+
+Next update: after heart mesh OR SHAP real lands.
