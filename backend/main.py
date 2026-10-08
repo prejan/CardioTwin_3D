@@ -1,7 +1,7 @@
 """CardioTwin 3D API v2 - real XGB models."""
 import json, joblib, pandas as pd
 from pathlib import Path
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 BASE = Path(__file__).resolve().parents[1]
@@ -10,6 +10,14 @@ app = FastAPI(title="CardioTwin 3D API")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
 FEATURES = json.loads((MODEL_DIR / "features.json").read_text())
+RANGES = {
+    "Age": (20, 100), "Weight": (30, 200), "Length": (130, 210), "BMI": (15, 50),
+    "BP": (80, 250), "PR": (40, 150), "FBS": (60, 300), "CR": (0.5, 2.0),
+    "TG": (50, 500), "LDL": (50, 300), "HDL": (20, 100), "BUN": (5, 50),
+    "ESR": (1, 100), "HB": (8, 20), "K": (3.0, 6.0), "Na": (130, 150),
+    "WBC": (3000, 15000), "Lymph": (10, 60), "Neut": (30, 80), "PLT": (100, 500),
+    "EF-TTE": (20, 80),
+}
 MODELS = {}
 for t in ["cad", "lad", "lcx", "rca"]:
     p = MODEL_DIR / f"{t}.pkl"
@@ -31,6 +39,14 @@ def health():
 
 @app.post("/predict")
 def predict(patient: dict):
+    for k, (lo, hi) in RANGES.items():
+        if k in patient:
+            try:
+                v = float(patient[k])
+            except Exception:
+                raise HTTPException(status_code=400, detail=f"{k} must be numeric")
+            if not (lo <= v <= hi):
+                raise HTTPException(status_code=400, detail=f"{k}={v} out of range [{lo}-{hi}]")
     X = to_vector(patient)
     out = {}
     for t, m in MODELS.items():
