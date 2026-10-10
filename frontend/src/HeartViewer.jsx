@@ -21,56 +21,71 @@ function HeartSTL() {
     g.boundingBox.getCenter(center)
     g.translate(-center.x, -center.y, -center.z)
     g.computeVertexNormals()
-    const maxDim = Math.max(size.x, size.y, size.z) || 1
-    return { centered: g, scale: 2.2 / maxDim }
+    return { centered: g, scale: 2.2 / Math.max(size.x, size.y, size.z) }
   }, [geom])
   return (
     <mesh geometry={centered} scale={scale} rotation={[0.15, -0.35, 0]}>
-      <meshStandardMaterial color="#a62b3a" roughness={0.5} metalness={0.1} side={THREE.DoubleSide} transparent opacity={0.98} />
+      <meshStandardMaterial color="#e0607a" roughness={0.55} metalness={0.05} side={THREE.DoubleSide} />
     </mesh>
   )
 }
 
-function Coronary({ points, prob, selected, onClick, name }) {
-  const curve = useMemo(() => new THREE.CatmullRomCurve3(points.map(p => new THREE.Vector3(...p))), [points])
+function Branch({ pts, color, r = 0.032, selected, name, onClick }) {
+  const curve = useMemo(() => new THREE.CatmullRomCurve3(pts.map(p => new THREE.Vector3(...p))), [pts])
   return (
     <mesh onClick={(e) => { e.stopPropagation(); onClick(name) }} renderOrder={10}>
-      <tubeGeometry args={[curve, 48, selected ? 0.06 : 0.045, 10, false]} />
-      <meshStandardMaterial color={riskColor(prob)} emissive={selected ? riskColor(prob) : 'black'} emissiveIntensity={selected ? 0.55 : 0} roughness={0.25} depthTest={true} />
+      <tubeGeometry args={[curve, 32, selected ? r * 1.5 : r, 8, false]} />
+      <meshStandardMaterial color={color} emissive={selected ? color : 'black'} emissiveIntensity={selected ? 0.5 : 0} roughness={0.3} />
     </mesh>
   )
 }
 
-// Hugging HRA-Male surface (heart ~2.2 tall, front z~0.8). Thin + on-surface.
-const PATHS = {
-  LAD: [[0.02, 0.95, 0.72], [-0.02, 0.45, 0.92], [-0.08, -0.1, 0.95], [-0.22, -0.75, 0.62]],
-  LCX: [[0.05, 0.88, 0.68], [0.55, 0.5, 0.78], [0.82, 0.05, 0.62], [0.72, -0.45, 0.35]],
-  RCA: [[-0.02, 0.88, 0.68], [-0.58, 0.48, 0.75], [-0.85, -0.02, 0.58], [-0.6, -0.55, 0.35]],
+// Front view like reference: LCA top-center bifurcates. All z ~ surface 0.65-0.95.
+function CoronaryTree({ probs, selected, onSelect }) {
+  const cLAD = riskColor(probs.lad), cLCX = riskColor(probs.lcx), cRCA = riskColor(probs.rca)
+  return (
+    <group>
+      {/* LCA trunk */}
+      <Branch name="LAD" pts={[[0.0, 1.02, 0.6], [-0.04, 0.92, 0.68]]} color={cLAD} r={0.045} selected={selected === 'LAD'} onClick={onSelect} />
+      {/* LAD main down anterior groove */}
+      <Branch name="LAD" pts={[[-0.04, 0.92, 0.68], [-0.07, 0.5, 0.9], [-0.1, 0.05, 0.95], [-0.18, -0.45, 0.78], [-0.26, -0.85, 0.5]]} color={cLAD} r={0.04} selected={selected === 'LAD'} onClick={onSelect} />
+      {/* Diagonal 1 + 2 off LAD */}
+      <Branch name="LAD" pts={[[-0.07, 0.42, 0.9], [-0.32, 0.18, 0.82], [-0.52, -0.08, 0.6]]} color={cLAD} r={0.024} selected={selected === 'LAD'} onClick={onSelect} />
+      <Branch name="LAD" pts={[[-0.09, 0.02, 0.94], [-0.33, -0.22, 0.78], [-0.48, -0.45, 0.55]]} color={cLAD} r={0.022} selected={selected === 'LAD'} onClick={onSelect} />
+      {/* LCX main left groove */}
+      <Branch name="LCX" pts={[[-0.02, 0.94, 0.66], [0.3, 0.78, 0.7], [0.62, 0.42, 0.72], [0.74, 0.0, 0.55], [0.6, -0.42, 0.35]]} color={cLCX} r={0.04} selected={selected === 'LCX'} onClick={onSelect} />
+      {/* OM1 + OM2 */}
+      <Branch name="LCX" pts={[[0.58, 0.4, 0.72], [0.38, 0.02, 0.85], [0.22, -0.38, 0.7]]} color={cLCX} r={0.024} selected={selected === 'LCX'} onClick={onSelect} />
+      <Branch name="LCX" pts={[[0.72, -0.02, 0.55], [0.5, -0.35, 0.62], [0.35, -0.6, 0.45]]} color={cLCX} r={0.022} selected={selected === 'LCX'} onClick={onSelect} />
+      {/* RCA main right groove */}
+      <Branch name="RCA" pts={[[0.06, 1.0, 0.58], [0.5, 0.85, 0.62], [0.85, 0.45, 0.6], [0.9, -0.05, 0.5], [0.68, -0.5, 0.38], [0.3, -0.8, 0.35]]} color={cRCA} r={0.042} selected={selected === 'RCA'} onClick={onSelect} />
+      {/* Acute marginal */}
+      <Branch name="RCA" pts={[[0.88, 0.05, 0.52], [0.62, -0.18, 0.7], [0.4, -0.42, 0.62]]} color={cRCA} r={0.022} selected={selected === 'RCA'} onClick={onSelect} />
+    </group>
+  )
 }
 
 function FallbackHeart() {
   return (
     <mesh>
-      <sphereGeometry args={[1.05, 40, 40]} />
-      <meshStandardMaterial color="#7a1f2b" roughness={0.45} />
+      <sphereGeometry args={[1.05, 32, 32]} />
+      <meshStandardMaterial color="#7a1f2b" roughness={0.5} />
     </mesh>
   )
 }
 
 export default function HeartViewer({ probs = { lad: 0, lcx: 0, rca: 0 }, selected, onSelect }) {
   return (
-    <Canvas camera={{ position: [0, 0.35, 4.0] }} style={{ height: 420, background: '#0b1020', borderRadius: 8 }}>
-      <ambientLight intensity={1.0} />
-      <directionalLight position={[5, 5, 5]} intensity={1.5} />
-      <directionalLight position={[-4, -2, -3]} intensity={0.6} />
-      <hemisphereLight args={['#ffffff', '#331111', 0.5]} />
+    <Canvas camera={{ position: [0, 0.3, 4.0] }} style={{ height: 460, background: '#0b1020', borderRadius: 8 }}>
+      <ambientLight intensity={1.1} />
+      <directionalLight position={[4, 5, 6]} intensity={1.6} />
+      <directionalLight position={[-4, -2, -3]} intensity={0.5} />
+      <hemisphereLight args={['#ffffff', '#442222', 0.6]} />
       <Suspense fallback={<FallbackHeart />}>
         <HeartSTL />
       </Suspense>
-      <Coronary name="LAD" points={PATHS.LAD} prob={probs.lad} selected={selected === 'LAD'} onClick={onSelect} />
-      <Coronary name="LCX" points={PATHS.LCX} prob={probs.lcx} selected={selected === 'LCX'} onClick={onSelect} />
-      <Coronary name="RCA" points={PATHS.RCA} prob={probs.rca} selected={selected === 'RCA'} onClick={onSelect} />
-      <OrbitControls enablePan={false} minDistance={2.5} maxDistance={7} />
+      <CoronaryTree probs={probs} selected={selected} onSelect={onSelect} />
+      <OrbitControls enablePan={false} minDistance={2.4} maxDistance={7} />
     </Canvas>
   )
 }
