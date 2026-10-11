@@ -1,15 +1,19 @@
-"""CardioTwin 3D API v2 - real XGB models."""
-import json, joblib, pandas as pd
+"""CardioTwin 3D API v3 - nested models + exact SHAP + single-URL serve."""
+import json, joblib, pandas as pd, numpy as np
 from pathlib import Path
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 
 BASE = Path(__file__).resolve().parents[1]
 MODEL_DIR = BASE / "models"
+DIST = BASE / "frontend" / "dist"
 app = FastAPI(title="CardioTwin 3D API")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
 FEATURES = json.loads((MODEL_DIR / "features.json").read_text())
+METRICS = json.loads((MODEL_DIR / "metrics.json").read_text()) if (MODEL_DIR / "metrics.json").exists() else {}
 RANGES = {
     "Age": (20, 100), "Weight": (30, 200), "Length": (130, 210), "BMI": (15, 50),
     "BP": (80, 250), "PR": (40, 150), "FBS": (60, 300), "CR": (0.5, 2.0),
@@ -25,50 +29,68 @@ for t in ["cad", "lad", "lcx", "rca"]:
         MODELS[t] = joblib.load(p)
 
 def to_vector(patient: dict):
-    # patient has raw cols like Age, BP... -> one row -> get_dummies -> align
     df = pd.DataFrame([patient])
     df = pd.get_dummies(df, drop_first=True)
     for c in FEATURES:
         if c not in df.columns:
             df[c] = 0
-    return df[FEATURES]
+    return df[FEATURES].astype(float)
+
+def validate(patient: dict):
+    for k, (lo, hi) in RANGES.items():
+        if k in patient:
+            try: v = float(patient[k])
+            except Exception: raise HTTPException(400, f"{k} must be numeric")
+            if not (lo <= v <= hi): raise HTTPException(400, f"{k}={v} out of range [{lo}-{hi}]")
 
 @app.get("/health")
 def health():
-    return {"ok": True, "loaded": list(MODELS.keys()), "n_features": len(FEATURES)}
+    return {"ok": True, "loaded": list(MODELS.keys()), "n_features": len(FEATURES), "metrics": METRICS}
+
+@app.get("/api/metrics")
+def api_metrics():
+    return METRICS
 
 @app.post("/predict")
 def predict(patient: dict):
-    for k, (lo, hi) in RANGES.items():
-        if k in patient:
-            try:
-                v = float(patient[k])
-            except Exception:
-                raise HTTPException(status_code=400, detail=f"{k} must be numeric")
-            if not (lo <= v <= hi):
-                raise HTTPException(status_code=400, detail=f"{k}={v} out of range [{lo}-{hi}]")
+    validate(patient)
     X = to_vector(patient)
-    out = {}
-    for t, m in MODELS.items():
-        out[f"{t}_prob"] = round(float(m.predict_proba(X)[0, 1]), 3)
+    out = {f"{t}_prob": round(float(m.predict_proba(X)[0, 1]), 4) for t, m in MODELS.items()}
+    out["thresholds"] = {t: METRICS.get(t.upper(), {}).get("thr", 0.5) for t in MODELS}
     out["disclaimer"] = "Educational / decision-support only - not diagnostic."
     return out
 
 @app.post("/explain")
 def explain(patient: dict):
+    validate(patient)
+    import shap
     X = to_vector(patient)
-    # global importance from first calibrated estimator
-    resp = {"per_feature": {}, "top_global": {}}
-    try:
-        m = MODELS["cad"]
-        est = m.calibrated_classifiers_[0].base_estimator
-        imp = est.feature_importances_
-        top_idx = sorted(range(len(imp)), key=lambda i: imp[i], reverse=True)[:10]
-        resp["top_global"] = {FEATURES[i]: round(float(imp[i]), 4) for i in top_idx}
-        row = X.iloc[0]
-        # patient-specific: value * global importance as simple contribution proxy
-        contrib = {FEATURES[i]: round(float(row[FEATURES[i]] * imp[i]), 4) for i in top_idx}
-        resp["per_feature"] = contrib
-    except Exception as e:
-        resp["error"] = str(e)
+    resp = {"waterfall": {}, "base_value": {}, "units": "probability points"}
+    for t, m in MODELS.items():
+        try:
+            est = m.calibrated_classifiers_[0].base_estimator
+            if hasattr(est, "coef_"):
+                import sklearn
+                ex = shap.LinearExplainer(est, X)
+                sv = ex.shap_values(X)[0]
+            else:
+                ex = shap.TreeExplainer(est)
+                sv = ex.shap_values(X)[0]
+                if isinstance(sv, list): sv = sv[1] if len(sv) > 1 else sv[0]
+            idx = np.argsort(np.abs(sv))[::-1][:12]
+            resp["waterfall"][t] = [{"feature": FEATURES[i], "shap": round(float(sv[i]), 5), "value": float(X.iloc[0, i])} for i in idx]
+            resp["base_value"][t] = round(float(m.predict_proba(X)[0, 1] - sv.sum()), 4)
+        except Exception as e:
+            resp["waterfall"][t] = [{"error": str(e)}]
     return resp
+
+if DIST.exists():
+    app.mount("/assets", StaticFiles(directory=DIST / "assets"), name="assets")
+    app.mount("/anatomy", StaticFiles(directory=BASE / "frontend" / "public" / "anatomy"), name="anatomy")
+
+    @app.get("/{full_path:path}")
+    def spa(full_path: str):
+        f = DIST / full_path
+        if full_path and f.is_file():
+            return FileResponse(f)
+        return FileResponse(DIST / "index.html")
