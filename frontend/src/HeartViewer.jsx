@@ -1,4 +1,4 @@
-import { Suspense, useMemo, useEffect, useRef, Component } from 'react'
+import { Suspense, useMemo, useEffect, useRef, useState, Component } from 'react'
 import { Canvas, useFrame, useLoader } from '@react-three/fiber'
 import { OrbitControls, Html } from '@react-three/drei'
 import * as THREE from 'three'
@@ -14,8 +14,6 @@ const LAYER_GROUPS = {
   skin: ['Layer_Skin'], muscle: ['Layer_Muscle'], skeleton: ['Layer_Skeleton'],
   lungs: ['Layer_Lungs'], diaphragm: ['Layer_Diaphragm'],
 }
-// Pinned label anchors on thorax surface (tuned to cardiotwin_anatomy.glb front view)
-const LABEL_POS = { LAD: [-0.15, 0.15, 0.95], LCX: [0.62, 0.1, 0.75], RCA: [-0.62, 0.05, 0.7] }
 
 function riskColor(p) {
   if (p == null) return '#9aa4b2'
@@ -40,69 +38,86 @@ function Beating({ beat, children }) {
   return <group ref={ref}>{children}</group>
 }
 
-function Label({ id, prob, selected, onSelect, position }) {
-  return (
-    <Html position={position} center distanceFactor={6} style={{ pointerEvents: 'auto' }}>
-      <button
-        onClick={(e) => { e.stopPropagation(); onSelect(id) }}
-        style={{
-          background: selected === id ? '#0f172a' : 'white', color: selected === id ? 'white' : '#0f172a',
-          border: `2px solid ${riskColor(prob)}`, borderRadius: 8, padding: '3px 8px', fontSize: 11,
-          fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', boxShadow: '0 2px 8px rgba(0,0,0,0.18)',
-        }}
-      >
-        {id} {(prob ?? 0).toFixed(2)}
-      </button>
-    </Html>
-  )
+function vesselOf(name) {
+  for (const [v, nodes] of Object.entries(TARGET_NODES)) {
+    if (nodes.some(n => name === n || name.startsWith(n))) return v
+  }
+  return null
 }
 
-function Thorax({ probs, selected, onSelect, layers, isolate }) {
+function Thorax({ probs, selected, onSelect, layers, isolate, hasPred }) {
   const gltf = useLoader(GLTFLoader, '/anatomy/cardiotwin_anatomy.glb', (l) => { try { l.setMeshoptDecoder(MeshoptDecoder) } catch {} })
   const clone = useMemo(() => gltf.scene.clone(true), [gltf])
+  const [anchors, setAnchors] = useState({})
+
   useEffect(() => {
+    const boxes = { LAD: [], LCX: [], RCA: [] }
     clone.traverse((o) => {
       for (const [k, names] of Object.entries(LAYER_GROUPS)) {
         if (names.includes(o.name)) o.visible = layers[k] !== false
       }
       if (!o.isMesh) return
-      const nm = o.name || ''
-      let vessel = null
-      for (const [v, nodes] of Object.entries(TARGET_NODES)) {
-        if (nodes.some(n => nm === n || nm.startsWith(n))) { vessel = v; break }
-      }
-      if (vessel) {
-        const p = probs[vessel.toLowerCase()]
+      const v = vesselOf(o.name || '')
+      if (v) {
+        const p = probs[v.toLowerCase()]
         o.material = o.material.clone()
         o.material.color = new THREE.Color(riskColor(p))
         o.material.emissive = new THREE.Color(riskColor(p))
-        const dimmed = isolate && selected && selected !== vessel
-        o.material.emissiveIntensity = selected === vessel ? 0.65 : 0.2
+        const dimmed = isolate && selected && selected !== v
+        o.material.emissiveIntensity = selected === v ? 0.65 : 0.2
         o.material.transparent = !!dimmed
-        o.material.opacity = dimmed ? 0.22 : 1
-        o.userData.vessel = vessel
+        o.material.opacity = dimmed ? 0.18 : 1
+        o.userData.vessel = v
+        o.geometry.computeBoundingBox()
+        const c = new THREE.Vector3()
+        o.geometry.boundingBox.getCenter(c)
+        o.localToWorld(c)
+        boxes[v].push(c)
       }
     })
+    const avg = {}
+    for (const [v, pts] of Object.entries(boxes)) {
+      if (!pts.length) continue
+      const m = new THREE.Vector3()
+      pts.forEach(p => m.add(p))
+      m.divideScalar(pts.length)
+      // push outward so label sits off the mesh
+      m.x *= 1.35; m.y += 0.12
+      avg[v] = m.toArray()
+    }
+    setAnchors(avg)
   }, [clone, probs, selected, layers, isolate])
+
   return (
     <Beating beat={layers.beat}>
       <primitive object={clone} onClick={(e) => { e.stopPropagation(); const v = e.object?.userData?.vessel; if (v) onSelect(v) }} />
-      {Object.entries(LABEL_POS).map(([id, pos]) => (
-        <Label key={id} id={id} prob={probs[id.toLowerCase()]} selected={selected} onSelect={onSelect} position={pos} />
+      {hasPred && Object.entries(anchors).map(([id, pos]) => (
+        <Html key={id} position={pos} center distanceFactor={5} style={{ pointerEvents: 'auto' }}>
+          <button
+            onClick={(e) => { e.stopPropagation(); onSelect(id) }}
+            style={{
+              background: selected === id ? '#0f172a' : 'white', color: selected === id ? 'white' : '#0f172a',
+              border: `2px solid ${riskColor(probs[id.toLowerCase()])}`, borderRadius: 999, padding: '4px 10px',
+              fontSize: 12, fontWeight: 800, cursor: 'pointer', whiteSpace: 'nowrap', boxShadow: '0 3px 10px rgba(0,0,0,0.22)',
+            }}
+          >
+            {id} {(probs[id.toLowerCase()] ?? 0).toFixed(2)}
+          </button>
+        </Html>
       ))}
     </Beating>
   )
 }
 
-export default function HeartViewer({ probs, selected, onSelect, layers, isolate }) {
+export default function HeartViewer({ probs, selected, onSelect, layers, isolate, hasPred }) {
   return (
-    <Canvas camera={{ position: [0.15, 0.3, 3.0] }} style={{ height: 500, background: 'linear-gradient(180deg,#f8fafc,#e8eef5)', borderRadius: 12, border: '1px solid #e2e8f0' }}>
+    <Canvas camera={{ position: [0.15, 0.3, 3.0] }} style={{ height: 500, background: 'linear-gradient(180deg,#ffffff,#e9eff6)', borderRadius: 12, border: '1px solid #e2e8f0' }}>
       <ambientLight intensity={1.15} />
       <directionalLight position={[4, 5, 6]} intensity={1.6} />
       <hemisphereLight args={['#ffffff', '#cbd5e1', 0.6]} />
       <Guard fallback={null}>
         <Suspense fallback={null}>
-          <Thorax probs={probs} selected={selected} onSelect={onSelect} layers={layers} isolate={isolate} />
+          <Thorax probs={probs} selected={selected} onSelect={onSelect} layers={layers} isolate={isolate} hasPred={hasPred} />
         </Suspense>
       </Guard>
       <OrbitControls enablePan={false} minDistance={1.4} maxDistance={7} />

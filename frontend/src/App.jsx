@@ -40,20 +40,27 @@ export default function App() {
   useEffect(() => {
     fetch('http://localhost:8000/api/samples').then(r => r.json()).then(d => {
       setSamples(d)
-      if (d[0]) { setFull(d[0]); setPid(d[0].id); const f = {}; FIELDS.forEach(k => { if (d[0].features[k] !== undefined) f[k] = d[0].features[k] }); setForm(p => ({ ...p, ...f })) }
+      if (d[0]) {
+        setFull(d[0]); setPid(d[0].id)
+        const f = {}; FIELDS.forEach(k => { if (d[0].features[k] !== undefined) f[k] = d[0].features[k] })
+        const nf = { Age: 53, BP: 140, PR: 90, LDL: 120, HDL: 45, FBS: 90, TG: 150, 'EF-TTE': 55, Weight: 80, BMI: 27, ESR: 20, HB: 14, ...f }
+        setForm(nf)
+        setTimeout(() => predict(nf, d[0]), 600)
+      }
     }).catch(() => setSamples([]))
     fetch('http://localhost:8000/api/metrics').then(r => r.json()).then(setMetrics).catch(() => {})
     fetch('http://localhost:8000/health').then(r => r.json()).then(h => setStatus(`Backend OK - ${(h.loaded || []).join(',')}`)).catch(() => setStatus('Backend offline - uvicorn backend.main:app --port 8000'))
   }, [])
 
-  const predict = async () => {
+  const predict = async (overrideForm = null, overrideFull = null) => {
+    const f0 = overrideForm || form
     for (const f of FIELDS) {
-      const [lo, hi] = RANGES[f]; const v = Number(form[f])
+      const [lo, hi] = RANGES[f]; const v = Number(f0[f])
       if (isNaN(v) || v < lo || v > hi) { alert(`${f} must be ${lo}-${hi}`); return }
     }
     setLoading(true)
     try {
-      const clean = { ...(full?.features || {}), ...form }
+      const clean = { ...((overrideFull || full)?.features || {}), ...f0 }
       Object.keys(clean).forEach(k => { if (typeof clean[k] !== 'string') clean[k] = Number(clean[k]) })
       const r = await fetch('http://localhost:8000/predict', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(clean) }).then(async r => { if (!r.ok) { const j = await r.json().catch(() => ({})); throw new Error(j.detail || ('predict ' + r.status)) } return r.json() })
       setRes(r)
@@ -79,7 +86,7 @@ export default function App() {
               <b>Segmented heart - LAD / LCX / RCA pinned + click</b>
               <label style={{ fontSize: 12 }}><input type="checkbox" checked={isolate} onChange={e => setIsolate(e.target.checked)} /> Isolate selected</label>
             </div>
-            <HeartViewer probs={probs} selected={selected} onSelect={setSelected} layers={layers} isolate={isolate} />
+            <HeartViewer probs={probs} selected={selected} onSelect={setSelected} layers={layers} isolate={isolate} hasPred={!!res} />
             <div style={{ display: 'flex', gap: 14, marginTop: 10, fontSize: 13, flexWrap: 'wrap' }}>
               <label><input type="checkbox" checked={layers.lungs} onChange={e => setLayers({ ...layers, lungs: e.target.checked })} /> Lungs & airway</label>
               <label><input type="checkbox" checked={layers.skeleton} onChange={e => setLayers({ ...layers, skeleton: e.target.checked })} /> Rib cage</label>
@@ -106,10 +113,10 @@ export default function App() {
               <input value={q} onChange={e => setQ(e.target.value)} placeholder="Search P-001, CAD, Normal..." style={{ flex: 1, padding: 6, border: '1px solid #cbd5e1', borderRadius: 6 }} />
             </div>
             <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
-              <select value={pid} onChange={e => { const p = samples.find(s => s.id === e.target.value); setPid(e.target.value); if (p) { setFull(p); const f = {}; FIELDS.forEach(k => { if (p.features[k] !== undefined) f[k] = p.features[k] }); setForm(x => ({ ...x, ...f })) } }} style={{ flex: 1, padding: 6 }}>
+              <select value={pid} onChange={e => { const p = samples.find(s => s.id === e.target.value); setPid(e.target.value); if (p) { setFull(p); const f = {}; FIELDS.forEach(k => { if (p.features[k] !== undefined) f[k] = p.features[k] }); const nf = { ...form, ...f }; setForm(nf); predict(nf, p) } }} style={{ flex: 1, padding: 6 }}>
                 {samples.filter(s => !q || s.id.toLowerCase().includes(q.toLowerCase()) || s.truth.CAD.toLowerCase().includes(q.toLowerCase())).slice(0, 303).map(s => <option key={s.id} value={s.id}>{s.id} - {s.truth.CAD} LAD:{s.truth.LAD} LCX:{s.truth.LCX} RCA:{s.truth.RCA}</option>)}
               </select>
-              <button onClick={predict} disabled={loading} style={{ padding: '8px 14px', background: '#0f766e', color: 'white', border: 0, borderRadius: 8 }}>{loading ? '...' : 'Predict'}</button>
+              <button onClick={() => predict()} disabled={loading} style={{ padding: '8px 14px', background: '#0f766e', color: 'white', border: 0, borderRadius: 8 }}>{loading ? '...' : 'Predict'}</button>
             </div>
             <p style={{ fontSize: 11, color: '#475569' }}>All 303 dataset patients live via /api/samples - realtime /predict + /explain, nothing hardcoded.</p>
             {full && <p style={{ fontSize: 12, color: '#475569' }}>Truth: CAD {full.truth.CAD} LAD {full.truth.LAD} LCX {full.truth.LCX} RCA {full.truth.RCA}</p>}
