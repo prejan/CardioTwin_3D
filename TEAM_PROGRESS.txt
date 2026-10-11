@@ -1,71 +1,19 @@
 CardioTwin 3D - TEAM PROGRESS LOG
-Track A: Cardiovascular Risk Visualization & Prediction
-Repo: https://github.com/prejan/CardioTwin_3D/
-Deadline: 15 Oct 2026, 12:15 AM IST
-Updated: 08 Oct 2026 - v2 DONE (winnable version)
+Updated: UI-pro done - layers + heartbeat + patients
 
-------------------------------------------------------------
-WHAT THIS PROJECT IS (in simple words)
-------------------------------------------------------------
-We predict heart disease (CAD) + 3 vessel risks (LAD/LCX/RCA)
-from routine clinical data, show it on interactive 3D heart,
-and explain why with SHAP. Web app + disclaimer.
+DONE NOW:
+- Segmented BodyParts3D glb with LAD/LCX/RCA nodes colored by prob (no fake tubes)
+- Layers: skin/muscle/skeleton/lungs/diaphragm toggles, default all OFF so heart clear
+- Heartbeat 72bpm toggle (real pulsing via useFrame)
+- Patient dropdown P-001..P-008 from dataset with angiogram truth, click loads vitals
+- Light clinical UI (not dark AI slop): header, CAD card, vessel cards, SHAP waterfall, metrics with CIs
+- Nested CV: CAD 0.927, LAD 0.849, LCX 0.732, RCA 0.712 + Youden thr + bootstrap
+- Single URL backend serves dist/ + /api/*
+- Attribution: BodyParts3D CC BY-SA + UCI CC BY in footer
 
-------------------------------------------------------------
-DONE (Day 1 + v2 - 08 Oct)
-------------------------------------------------------------
-Day1:
-- Repo + venv + Node24 + React+Three.js
-- Data: data/raw.csv 303x59 from UCI xlsx (CAD derived if any vessel Stenotic)
-- Baseline: CAD RF F1 0.91 AUC 0.931, LAD 0.843 (models/metrics_baseline.json)
-- Smoke 3D ball+sticks, build OK
+RUN:
+  backend (no --reload): uvicorn backend.main:app --port 8000
+  frontend dev: cd frontend; npm run dev
+  single URL: build frontend then open http://localhost:8000/
 
-v2 JUST FINISHED (this is now winnable):
-- backend/train.py: XGB calibrated (300 trees, depth4) for 4 heads
-  CAD F1 0.92 AUC 0.93, LAD 0.828/0.851, LCX 0.45/0.733, RCA 0.391/0.727
-  Saved: models/cad.pkl, lad.pkl, lcx.pkl, rca.pkl (3.9MB total, now in git)
-  Saved: models/metrics.json, features.json (57 features)
-- backend/main.py REAL: /health, /predict, /explain work
-  Tested: sample patient -> cad 0.809, lad 0.659, lcx 0.262, rca 0.481
-- frontend v2: HeartViewer.jsx curved coronaries (TubeGeometry, click select)
-  App.jsx dashboard: CAD badge, 3 bars, 12-field form, Predict button -> live 3D
-  explain top_global panel, disclaimer banner, build 569 modules OK
-- Fixed .gitignore to track models for judges
-
-How to run v2 (2 terminals):
-  Terminal1 Backend: .\venv\Scripts\Activate; uvicorn backend.main:app --reload --port 8000
-    Test: http://localhost:8000/health should show loaded 4 models
-  Terminal2 Frontend: cd frontend; npm run dev -> http://localhost:5173
-    Change Age/BP/LDL -> Predict + Update 3D -> vessels change color, click vessel
-
-------------------------------------------------------------
-WHY v2 CAN WIN (vs Day1 smoke)
-------------------------------------------------------------
-Before: static ball+sticks, fake sliders, no ML.
-Now: real XGB probs drive 3D color, curved vessels hug heart mesh,
-click-to-inspect LAD/LCX/RCA + CAD badge + importance explanation.
-Covers: Predictive 30% (calibrated XGB + 5 metrics), 3D 25% (interactive tubes),
-Interpretability 20% (top_global + per-patient proxy), Integration 15% (live API).
-
-Still to polish for top-3:
-- Replace sphere with real .glb heart mesh (keep tube logic)
-- Full SHAP waterfall (currently importance proxy)
-- README + 6-page doc + video
-
-------------------------------------------------------------
-NEXT STEPS (teammates pick one)
-------------------------------------------------------------
-[ ] A - Heart mesh (highest visual impact):
-    Download .glb (NIH 3D Print Exchange) to frontend/public/heart.glb
-    Load with useGLTF in HeartViewer, keep Coronary tubes on top
-[ ] B - Polish form: add all 55 fields OR smart defaults + validation
-    Add patient history dropdown (2-3 sample patients from raw.csv)
-[ ] C - README + docs: setup/run, architecture diagram, attributions
-    Files: README.md, docs/architecture.md
-[ ] D - SHAP real: pip shap, backend explain with shap.TreeExplainer for XGB
-[ ] E - Video (13 Oct): script input->predict->3D click->explain
-
-Order: A+B 09-10 Oct, C+D 11-12 Oct, E 13 Oct, submit 14 Oct before 9PM.
-Do NOT commit venv/, node_modules/, dist/ (already ignored).
-
-Next update: after heart mesh OR SHAP real lands.
+NEXT: README + 6-page PDF + video. Do NOT copy opponents, ours is original light theme + layer toggles they lack.
