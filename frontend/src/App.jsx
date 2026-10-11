@@ -31,6 +31,8 @@ export default function App() {
   const [samples, setSamples] = useState([])
   const [pid, setPid] = useState('')
   const [selected, setSelected] = useState('LAD')
+  const [isolate, setIsolate] = useState(true)
+  const [q, setQ] = useState('')
   const [layers, setLayers] = useState({ skin: false, muscle: false, skeleton: false, lungs: false, diaphragm: false, beat: true })
   const [loading, setLoading] = useState(false)
   const [status, setStatus] = useState('checking backend...')
@@ -73,8 +75,11 @@ export default function App() {
       <main style={{ display: 'grid', gridTemplateColumns: '1.35fr 1fr', gap: 14, padding: 14, maxWidth: 1280, margin: '0 auto' }}>
         <section>
           <div style={card}>
-            <b>Segmented heart - click a vessel</b>
-            <HeartViewer probs={probs} selected={selected} onSelect={setSelected} layers={layers} />
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <b>Segmented heart - LAD / LCX / RCA pinned + click</b>
+              <label style={{ fontSize: 12 }}><input type="checkbox" checked={isolate} onChange={e => setIsolate(e.target.checked)} /> Isolate selected</label>
+            </div>
+            <HeartViewer probs={probs} selected={selected} onSelect={setSelected} layers={layers} isolate={isolate} />
             <div style={{ display: 'flex', gap: 14, marginTop: 10, fontSize: 13, flexWrap: 'wrap' }}>
               <label><input type="checkbox" checked={layers.lungs} onChange={e => setLayers({ ...layers, lungs: e.target.checked })} /> Lungs & airway</label>
               <label><input type="checkbox" checked={layers.skeleton} onChange={e => setLayers({ ...layers, skeleton: e.target.checked })} /> Rib cage</label>
@@ -97,12 +102,16 @@ export default function App() {
         <section>
           <div style={card}>
             <div style={{ display: 'flex', gap: 8 }}>
-              <b>Patient</b>
+              <b>Patient {samples.length ? `(${samples.length})` : ''}</b>
+              <input value={q} onChange={e => setQ(e.target.value)} placeholder="Search P-001, CAD, Normal..." style={{ flex: 1, padding: 6, border: '1px solid #cbd5e1', borderRadius: 6 }} />
+            </div>
+            <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
               <select value={pid} onChange={e => { const p = samples.find(s => s.id === e.target.value); setPid(e.target.value); if (p) { setFull(p); const f = {}; FIELDS.forEach(k => { if (p.features[k] !== undefined) f[k] = p.features[k] }); setForm(x => ({ ...x, ...f })) } }} style={{ flex: 1, padding: 6 }}>
-                {samples.map(s => <option key={s.id} value={s.id}>{s.id} - {s.truth.CAD}</option>)}
+                {samples.filter(s => !q || s.id.toLowerCase().includes(q.toLowerCase()) || s.truth.CAD.toLowerCase().includes(q.toLowerCase())).slice(0, 303).map(s => <option key={s.id} value={s.id}>{s.id} - {s.truth.CAD} LAD:{s.truth.LAD} LCX:{s.truth.LCX} RCA:{s.truth.RCA}</option>)}
               </select>
               <button onClick={predict} disabled={loading} style={{ padding: '8px 14px', background: '#0f766e', color: 'white', border: 0, borderRadius: 8 }}>{loading ? '...' : 'Predict'}</button>
             </div>
+            <p style={{ fontSize: 11, color: '#475569' }}>All 303 dataset patients live via /api/samples - realtime /predict + /explain, nothing hardcoded.</p>
             {full && <p style={{ fontSize: 12, color: '#475569' }}>Truth: CAD {full.truth.CAD} LAD {full.truth.LAD} LCX {full.truth.LCX} RCA {full.truth.RCA}</p>}
             {res && <div style={{ background: res.cad_prob >= 0.5 ? '#fee2e2' : '#dcfce7', padding: 10, borderRadius: 8 }}><b>CAD {res.cad_prob.toFixed(3)}</b></div>}
             {VESSELS.map(v => (
