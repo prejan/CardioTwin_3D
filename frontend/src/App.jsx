@@ -1,114 +1,172 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import HeartViewer, { riskColor } from './HeartViewer'
 
-const DEFAULTS = { Age: 53, BP: 140, PR: 90, FBS: 90, TG: 150, LDL: 120, HDL: 45, BUN: 18, ESR: 20, HB: 14, K: 4.2, Na: 141, WBC: 7000, 'EF-TTE': 55, Weight: 80, Length: 170, BMI: 27, Sex: 'Male', DM: 'No', HTN: 'Yes', 'Current Smoker': 'No', 'Typical Chest Pain': 'Yes', Dyspnea: 'Yes', 'Q Wave': 'No', 'St Elevation': 'No', Tinversion: 'No', LVH: 'No', 'Region RWMA': 'No', VHD: 'No' }
 const RANGES = { Age: [20, 100], BP: [80, 250], PR: [40, 150], LDL: [50, 300], HDL: [20, 100], FBS: [60, 300], TG: [50, 500], 'EF-TTE': [20, 80], Weight: [30, 200], BMI: [15, 50], ESR: [1, 100], HB: [8, 20] }
 const FIELDS = Object.keys(RANGES)
+const VESSELS = [
+  { id: 'LAD', name: 'Left Anterior Descending', terr: 'Anterior wall + apex' },
+  { id: 'LCX', name: 'Left Circumflex', terr: 'Lateral wall' },
+  { id: 'RCA', name: 'Right Coronary', terr: 'Inferior wall + conduction' },
+]
 
-function Bar({ label, v }) {
-  if (v == null) return <div style={{ fontSize: 13 }}><b>{label}</b>: -- click Predict --</div>
+const card = { background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10, padding: 12 }
+const muted = { color: '#475569', fontSize: 12 }
+
+function Bar({ v }) {
+  if (v == null) return <span style={muted}>--</span>
   return (
-    <div style={{ margin: '4px 0' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
-        <b>{label}</b><span>{v.toFixed(3)} {v >= 0.7 ? '(HIGH)' : v >= 0.4 ? '(MID)' : '(LOW)'}</span>
-      </div>
-      <div style={{ height: 8, background: '#eee', borderRadius: 4 }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      <div style={{ flex: 1, height: 8, background: '#eef2f7', borderRadius: 4 }}>
         <div style={{ width: `${v * 100}%`, height: 8, borderRadius: 4, background: riskColor(v) }} />
       </div>
+      <b style={{ fontSize: 13, minWidth: 90, textAlign: 'right' }}>{v.toFixed(3)} {v >= 0.7 ? 'High' : v >= 0.4 ? 'Mid' : 'Low'}</b>
     </div>
   )
 }
 
 export default function App() {
-  const [form, setForm] = useState(DEFAULTS)
+  const [form, setForm] = useState({ Age: 53, BP: 140, PR: 90, LDL: 120, HDL: 45, FBS: 90, TG: 150, 'EF-TTE': 55, Weight: 80, BMI: 27, ESR: 20, HB: 14 })
+  const [full, setFull] = useState(null)
   const [res, setRes] = useState(null)
-  const [exp, setExp] = useState({})
+  const [water, setWater] = useState({})
+  const [metrics, setMetrics] = useState({})
+  const [samples, setSamples] = useState([])
+  const [pid, setPid] = useState('')
   const [selected, setSelected] = useState('LAD')
+  const [layers, setLayers] = useState({ skin: false, muscle: false, skeleton: false, lungs: false, diaphragm: false, beat: true })
   const [loading, setLoading] = useState(false)
-  const [apiOk, setApiOk] = useState('unknown - click Predict to call XGB backend')
+  const [status, setStatus] = useState('Backend not checked')
+
+  useEffect(() => {
+    fetch('http://localhost:8000/api/samples').then(r => r.json()).then(d => {
+      setSamples(d)
+      if (d[0]) { setFull(d[0]); setPid(d[0].id); applyPatient(d[0]) }
+    }).catch(() => {})
+    fetch('http://localhost:8000/api/metrics').then(r => r.json()).then(setMetrics).catch(() => {})
+    fetch('http://localhost:8000/health').then(r => r.json()).then(h => setStatus(`Backend OK - ${(h.loaded || []).join(',')} | ${h.n_features} features`)).catch(() => setStatus('Backend offline - start uvicorn backend.main:app --port 8000'))
+  }, [])
+
+  const applyPatient = (p) => {
+    const f = {}
+    FIELDS.forEach(k => { if (p.features[k] !== undefined) f[k] = p.features[k] })
+    setForm(prev => ({ ...prev, ...f }))
+    setFull(p)
+  }
 
   const predict = async () => {
-    for (const f of Object.keys(RANGES)) {
-      const [lo, hi] = RANGES[f]
-      const v = Number(form[f])
-      if (isNaN(v) || v < lo || v > hi) {
-        alert(`${f} must be between ${lo} and ${hi}. You entered ${form[f]}`)
-        return
-      }
+    for (const f of FIELDS) {
+      const [lo, hi] = RANGES[f]; const v = Number(form[f])
+      if (isNaN(v) || v < lo || v > hi) { alert(`${f} must be ${lo}-${hi}`); return }
     }
     setLoading(true)
     try {
-      const clean = { ...form }
-      ;['Age', 'BP', 'PR', 'FBS', 'TG', 'LDL', 'HDL', 'BUN', 'ESR', 'HB', 'K', 'Na', 'WBC', 'EF-TTE', 'Weight', 'Length', 'BMI'].forEach(k => { if (clean[k] !== undefined) clean[k] = Number(clean[k]) })
-      const h = await fetch('http://localhost:8000/health').then(r => r.json())
-      setApiOk(`backend OK - loaded: ${(h.loaded || []).join(',')} | features: ${h.n_features}`)
-      const r = await fetch('http://localhost:8000/predict', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(clean) }).then(r => r.json())
-      console.log('XGB predict raw:', r)
+      const clean = { ...(full?.features || {}), ...form }
+      Object.keys(clean).forEach(k => { if (typeof clean[k] !== 'string') clean[k] = Number(clean[k]) })
+      const r = await fetch('http://localhost:8000/predict', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(clean) }).then(r => { if (!r.ok) throw new Error(r.statusText); return r.json() })
       setRes(r)
       const e = await fetch('http://localhost:8000/explain', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(clean) }).then(r => r.json())
-      setExp(e.top_global || {})
-    } catch (err) {
-      setApiOk('backend NOT reachable - start: uvicorn backend.main:app --reload --port 8000')
-      alert('Start backend first: uvicorn backend.main:app --reload --port 8000. ' + err)
-    }
+      setWater(e.waterfall?.cad || [])
+    } catch (err) { alert('Backend error: ' + err.message + ' - run uvicorn backend.main:app --port 8000') }
     setLoading(false)
   }
 
-  const vesselInfo = {
-    LAD: 'Left Anterior Descending - front wall.',
-    LCX: 'Left Circumflex - lateral wall.',
-    RCA: 'Right Coronary Artery - inferior wall.',
-  }
   const probs = res ? { lad: res.lad_prob, lcx: res.lcx_prob, rca: res.rca_prob } : { lad: 0, lcx: 0, rca: 0 }
 
   return (
-    <div style={{ padding: 16, fontFamily: 'sans-serif', maxWidth: 1100, margin: '0 auto' }}>
-      <h1>CardioTwin 3D v2 - XGB Live</h1>
-      <p style={{ background: '#fff3cd', padding: 8, borderRadius: 4 }}>
-        Educational only - not diagnostic. ML: XGB calibrated (models/cad.pkl etc) on UCI 303. No hardcoding - 3D colors come from /predict.
-      </p>
-      <p style={{ fontSize: 12, background: '#eef', padding: 6 }}>API status: {apiOk}</p>
-      <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: 16 }}>
-        <div>
-          <HeartViewer probs={probs} selected={selected} onSelect={setSelected} />
-          <p style={{ fontSize: 13 }}>Click vessel. Red 0.7+, Orange 0.4+, Green below.</p>
-          <div style={{ background: '#f6f8ff', padding: 10, borderRadius: 6, fontSize: 13 }}>
-            <b>{selected}</b>: {vesselInfo[selected]} Prob: <b>{res ? res[selected.toLowerCase() + '_prob'].toFixed(3) : '-- press Predict --'}</b>
-          </div>
-        </div>
-        <div>
-          {!res && <div style={{ background: '#eee', padding: 10, borderRadius: 6 }}><b>No prediction yet.</b> Change inputs, click Predict to run XGB models.</div>}
-          {res && (
-            <div style={{ background: res.cad_prob >= 0.5 ? '#fde2e2' : '#dff5e1', padding: 10, borderRadius: 6 }}>
-              <b>CAD: {res.cad_prob.toFixed(3)} - {res.cad_prob >= 0.5 ? 'CAD likely' : 'Normal likely'}</b> (from models/cad.pkl)
-            </div>
-          )}
-          <Bar label="LAD (models/lad.pkl)" v={res?.lad_prob} /><Bar label="LCX (models/lcx.pkl)" v={res?.lcx_prob} /><Bar label="RCA (models/rca.pkl)" v={res?.rca_prob} />
-          <h3>Patient inputs (validated ranges - judges can't break)</h3>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6 }}>
-            {FIELDS.map(f => {
-              const [lo, hi] = RANGES[f]
-              const v = Number(form[f])
-              const bad = isNaN(v) || v < lo || v > hi
-              return (
-                <label key={f} style={{ fontSize: 12 }}>{f} [{lo}-{hi}]<br />
-                  <input type="number" min={lo} max={hi} style={{ width: '100%', border: bad ? '2px solid red' : '1px solid #ccc' }} value={form[f]} onChange={e => setForm({ ...form, [f]: e.target.value })} />
-                  {bad && <span style={{ color: 'red' }}>Enter {lo}-{hi}</span>}
-                </label>
-              )
-            })}
-          </div>
-          <button onClick={predict} disabled={loading} style={{ marginTop: 10, padding: '8px 16px', background: '#1d4ed8', color: 'white', border: 0, borderRadius: 6 }}>
-            {loading ? 'Running XGB...' : 'Run XGB Predict + Update 3D'}
-          </button>
-          {Object.keys(exp).length > 0 && (
-            <div style={{ fontSize: 12 }}>
-              <h4>Top CAD drivers (from backend /explain)</h4>
-              {Object.entries(exp).slice(0, 8).map(([k, v]) => <div key={k}>{k}: {v}</div>)}
-            </div>
-          )}
-        </div>
+    <div style={{ fontFamily: 'Inter, system-ui, sans-serif', background: '#f8fafc', minHeight: '100vh', color: '#0f172a' }}>
+      <header style={{ background: '#0f172a', color: 'white', padding: '12px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div><b style={{ fontSize: 18 }}>CardioTwin 3D</b><span style={{ marginLeft: 10, fontSize: 12, color: '#cbd5e1' }}>Vessel-level coronary risk - Track A</span></div>
+        <div style={{ fontSize: 12, color: '#cbd5e1' }}>{status}</div>
+      </header>
+      <div style={{ background: '#fef9c3', padding: '8px 20px', fontSize: 12, borderBottom: '1px solid #fde68a' }}>
+        Educational decision-support only - not a diagnosis. Never replaces angiography or clinician judgement. Model trained on 303 referred patients, no external validation.
       </div>
+
+      <main style={{ display: 'grid', gridTemplateColumns: '1.35fr 1fr', gap: 14, padding: 14, maxWidth: 1280, margin: '0 auto' }}>
+        <section>
+          <div style={card}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+              <b>Interactive heart - BodyParts3D segmented vessels</b>
+              <span style={muted}>Drag rotate | Scroll zoom | Click vessel</span>
+            </div>
+            <HeartViewer probs={probs} selected={selected} onSelect={setSelected} layers={layers} />
+            <div style={{ display: 'flex', gap: 14, marginTop: 10, fontSize: 13, flexWrap: 'wrap' }}>
+              <label><input type="checkbox" checked={layers.lungs} onChange={e => setLayers({ ...layers, lungs: e.target.checked })} /> Lungs & airway</label>
+              <label><input type="checkbox" checked={layers.skeleton} onChange={e => setLayers({ ...layers, skeleton: e.target.checked })} /> Rib cage</label>
+              <label><input type="checkbox" checked={layers.skin} onChange={e => setLayers({ ...layers, skin: e.target.checked })} /> Skin</label>
+              <label><input type="checkbox" checked={layers.muscle} onChange={e => setLayers({ ...layers, muscle: e.target.checked })} /> Muscle</label>
+              <label><input type="checkbox" checked={layers.beat} onChange={e => setLayers({ ...layers, beat: e.target.checked })} /> Heartbeat 72bpm</label>
+            </div>
+          </div>
+
+          <div style={{ ...card, marginTop: 12 }}>
+            <b>Why this prediction (exact SHAP, % points)</b>
+            {!water.length && <p style={muted}>Run Predict to see signed drivers for CAD.</p>}
+            {water.slice(0, 8).map((w, i) => (
+              <div key={i} style={{ display: 'flex', gap: 8, fontSize: 12, padding: '3px 0', borderBottom: '1px solid #f1f5f9' }}>
+                <span style={{ width: 170 }}>{w.feature}</span>
+                <span style={{ width: 60 }}>val {Number(w.value).toFixed(1)}</span>
+                <b style={{ color: w.shap >= 0 ? '#b42318' : '#12805c', width: 70, textAlign: 'right' }}>{w.shap >= 0 ? '+' : ''}{w.shap}</b>
+                <div style={{ flex: 1, height: 6, background: '#eef2f7', borderRadius: 3, alignSelf: 'center' }}>
+                  <div style={{ width: `${Math.min(100, Math.abs(w.shap) * 400)}%`, height: 6, marginLeft: w.shap >= 0 ? '50%' : undefined, background: w.shap >= 0 ? '#d92d20' : '#12805c', borderRadius: 3 }} />
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section>
+          <div style={card}>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <b>Patient</b>
+              <select value={pid} onChange={e => { const p = samples.find(s => s.id === e.target.value); setPid(e.target.value); if (p) applyPatient(p) }} style={{ flex: 1, padding: 6 }}>
+                {samples.map(s => <option key={s.id} value={s.id}>{s.id} - {s.truth.CAD} (LAD {s.truth.LAD})</option>)}
+              </select>
+              <button onClick={predict} disabled={loading} style={{ padding: '8px 14px', background: '#0f766e', color: 'white', border: 0, borderRadius: 8 }}>{loading ? 'Running...' : 'Predict'}</button>
+            </div>
+            {full && <p style={muted}>Angiogram truth: CAD {full.truth.CAD} | LAD {full.truth.LAD} | LCX {full.truth.LCX} | RCA {full.truth.RCA} - live pred is what-if, may differ.</p>}
+            {!res && <p style={muted}>Select a dataset patient above, edit vitals, Predict. 3D + SHAP update together.</p>}
+            {res && (
+              <>
+                <div style={{ background: res.cad_prob >= (res.thresholds?.cad ?? 0.5) ? '#fee2e2' : '#dcfce7', padding: 10, borderRadius: 8, margin: '8px 0' }}>
+                  <b>CAD {res.cad_prob.toFixed(3)} - {res.cad_prob >= (res.thresholds?.cad ?? 0.5) ? 'CAD likely' : 'Normal likely'}</b>
+                  <span style={muted}> thr {(res.thresholds?.cad ?? 0.5).toFixed(2)}</span>
+                </div>
+                {VESSELS.map(v => (
+                  <div key={v.id} onClick={() => setSelected(v.id)} style={{ border: selected === v.id ? '2px solid #0f766e' : '1px solid #e2e8f0', borderRadius: 8, padding: 8, marginBottom: 6, cursor: 'pointer' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}><b>{v.id} - {v.name}</b><span style={muted}>{v.terr}</span></div>
+                    <Bar v={res[v.id.toLowerCase() + '_prob']} />
+                  </div>
+                ))}
+              </>
+            )}
+          </div>
+
+          <div style={{ ...card, marginTop: 12 }}>
+            <b>Vitals (validated)</b>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6, marginTop: 8 }}>
+              {FIELDS.map(f => {
+                const [lo, hi] = RANGES[f]; const bad = Number(form[f]) < lo || Number(form[f]) > hi
+                return <label key={f} style={{ fontSize: 11 }}>{f} [{lo}-{hi}]<br /><input type="number" min={lo} max={hi} value={form[f]} onChange={e => setForm({ ...form, [f]: e.target.value })} style={{ width: '100%', padding: 5, border: bad ? '2px solid red' : '1px solid #cbd5e1', borderRadius: 6 }} /></label>
+              })}
+            </div>
+          </div>
+
+          <div style={{ ...card, marginTop: 12 }}>
+            <b>Model evidence (nested 5-fold, 303 pts)</b>
+            {!Object.keys(metrics).length && <p style={muted}>Backend /api/metrics offline.</p>}
+            {Object.entries(metrics).map(([t, m]) => (
+              <div key={t} style={{ fontSize: 12, padding: '4px 0', borderBottom: '1px solid #f1f5f9' }}>
+                <b>{t}</b> {m.model} - AUC {m.roc_auc} [{m.ci95?.join('-')}] thr {m.thr} F1 {m.f1} acc {m.acc}
+              </div>
+            ))}
+            <p style={muted}>LCX/RCA weak by data, not model - reported honestly like this.</p>
+          </div>
+        </section>
+      </main>
+      <footer style={{ textAlign: 'center', fontSize: 11, color: '#64748b', padding: 12 }}>
+        Contains BodyParts3D (CC BY-SA 2.1 JP, DBCLS) + UCI Z-Alizadeh Sani ext (CC BY 4.0). Research prototype only.
+      </footer>
     </div>
   )
 }

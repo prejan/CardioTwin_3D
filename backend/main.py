@@ -51,6 +51,25 @@ def health():
 def api_metrics():
     return METRICS
 
+@app.get("/api/samples")
+def api_samples():
+    import pandas as pd
+    df = pd.read_csv(BASE / "data" / "raw.csv")
+    if "CAD" not in df.columns:
+        df["CAD"] = ((df["LAD"].astype(str).str.lower() == "stenotic") | (df["LCX"].astype(str).str.lower() == "stenotic") | (df["RCA"].astype(str).str.lower() == "stenotic")).map({True: "CAD", False: "Normal"})
+    # 8 diverse: 4 CAD, 4 Normal, spread ages
+    cad = df[df["CAD"] == "CAD"].iloc[::max(1, len(df[df["CAD"] == "CAD"]) // 4)][:4]
+    nor = df[df["CAD"] == "Normal"].iloc[::max(1, len(df[df["CAD"] == "Normal"]) // 4)][:4]
+    sel = pd.concat([cad, nor]).reset_index(drop=True)
+    drop = ["LAD", "LCX", "RCA", "Cath", "CAD"]
+    out = []
+    for i, r in sel.iterrows():
+        feat = {k: (r[k].item() if hasattr(r[k], "item") else r[k]) for k in sel.columns if k not in drop}
+        # numpy -> python
+        feat = {k: float(v) if isinstance(v, (float, int)) and not isinstance(v, bool) else str(v) for k, v in feat.items()}
+        out.append({"id": f"P-{i+1:03d}", "truth": {"CAD": str(r["CAD"]), "LAD": str(r["LAD"]), "LCX": str(r["LCX"]), "RCA": str(r["RCA"])}, "features": feat})
+    return out
+
 @app.post("/predict")
 def predict(patient: dict):
     validate(patient)
