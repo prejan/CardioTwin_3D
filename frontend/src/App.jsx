@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import HeartViewer, { riskColor } from './HeartViewer'
 
-const RANGES = { Age: [20, 100], BP: [80, 250], PR: [40, 150], LDL: [50, 300], HDL: [20, 100], FBS: [60, 300], TG: [50, 500], 'EF-TTE': [20, 80], Weight: [30, 200], BMI: [15, 50], ESR: [1, 100], HB: [8, 20] }
+const RANGES = { Age: [20, 100], BP: [80, 250], PR: [40, 150], LDL: [10, 300], HDL: [10, 120], FBS: [60, 450], TG: [30, 1200], 'EF-TTE': [10, 80], Weight: [30, 200], BMI: [15, 50], ESR: [1, 100], HB: [8, 20] }
 const FIELDS = Object.keys(RANGES)
 const VESSELS = [
   { id: 'LAD', name: 'Left Anterior Descending', terr: 'Anterior wall + apex' },
@@ -53,7 +53,7 @@ export default function App() {
     try {
       const clean = { ...(full?.features || {}), ...form }
       Object.keys(clean).forEach(k => { if (typeof clean[k] !== 'string') clean[k] = Number(clean[k]) })
-      const r = await fetch('http://localhost:8000/predict', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(clean) }).then(r => { if (!r.ok) throw new Error('predict ' + r.status); return r.json() })
+      const r = await fetch('http://localhost:8000/predict', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(clean) }).then(async r => { if (!r.ok) { const j = await r.json().catch(() => ({})); throw new Error(j.detail || ('predict ' + r.status)) } return r.json() })
       setRes(r)
       const e = await fetch('http://localhost:8000/explain', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(clean) }).then(r => r.json())
       setWater(e.waterfall?.cad || [])
