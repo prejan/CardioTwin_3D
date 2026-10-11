@@ -1,0 +1,18 @@
+{
+  "CAD": {
+    "model": "rf",
+    "thr": 0.65
+  },
+  "LAD": {
+    "model": "rf",
+    "thr": 0.6
+  },
+  "LCX": {
+    "model": "xgb",
+    "thr": 0.4
+  },
+  "RCA": {
+    "model": "xgb",
+    "thr": 0.325
+  }
+}
