@@ -1,7 +1,9 @@
-import { Suspense, useMemo, useEffect, useRef } from 'react'
-import { Canvas, useFrame } from '@react-three/fiber'
-import { OrbitControls, useGLTF } from '@react-three/drei'
+import { Suspense, useMemo, useEffect, useRef, Component } from 'react'
+import { Canvas, useFrame, useLoader } from '@react-three/fiber'
+import { OrbitControls } from '@react-three/drei'
 import * as THREE from 'three'
+import { GLTFLoader } from 'three-stdlib'
+import { MeshoptDecoder } from 'meshopt-decoder'
 
 const TARGET_NODES = {
   LAD: ['Coronary_LAD', 'Coronary_LAD_Septal'],
@@ -20,54 +22,49 @@ function riskColor(p) {
   return '#12805c'
 }
 
+class Guard extends Component {
+  constructor(p) { super(p); this.state = { bad: false } }
+  static getDerivedStateFromError() { return { bad: true } }
+  render() { return this.state.bad ? this.props.fallback : this.props.children }
+}
+
 function Beating({ beat, children }) {
   const ref = useRef()
   useFrame(({ clock }) => {
     if (!ref.current) return
-    const t = clock.getElapsedTime()
-    const s = beat ? 1 + 0.032 * Math.sin(t * 2 * Math.PI * 72 / 60) : 1
+    const s = beat ? 1 + 0.03 * Math.sin(clock.getElapsedTime() * 2 * Math.PI * 72 / 60) : 1
     ref.current.scale.setScalar(s)
   })
   return <group ref={ref}>{children}</group>
 }
 
-function SegmentedHeart({ probs, selected, onSelect, layers }) {
-  const { scene } = useGLTF('/anatomy/cardiotwin_anatomy.glb')
-  const clone = useMemo(() => scene.clone(true), [scene])
-
+function Thorax({ probs, selected, onSelect, layers }) {
+  const gltf = useLoader(GLTFLoader, '/anatomy/cardiotwin_anatomy.glb', (l) => { try { l.setMeshoptDecoder(MeshoptDecoder) } catch {} })
+  const clone = useMemo(() => gltf.scene.clone(true), [gltf])
   useEffect(() => {
     clone.traverse((o) => {
-      // layer visibility
-      for (const [key, names] of Object.entries(LAYER_GROUPS)) {
-        if (names.includes(o.name)) o.visible = layers[key] !== false
+      for (const [k, names] of Object.entries(LAYER_GROUPS)) {
+        if (names.includes(o.name)) o.visible = layers[k] !== false
       }
       if (!o.isMesh) return
       const nm = o.name || ''
       let vessel = null
       for (const [v, nodes] of Object.entries(TARGET_NODES)) {
-        if (nodes.some(n => nm === n || nm.startsWith(n + '_') || nm.startsWith(n))) { vessel = v; break }
+        if (nodes.some(n => nm === n || nm.startsWith(n))) { vessel = v; break }
       }
       if (vessel) {
-        const prob = probs[vessel.toLowerCase()]
+        const p = probs[vessel.toLowerCase()]
         o.material = o.material.clone()
-        o.material.color = new THREE.Color(riskColor(prob))
-        o.material.emissive = new THREE.Color(riskColor(prob))
+        o.material.color = new THREE.Color(riskColor(p))
+        o.material.emissive = new THREE.Color(riskColor(p))
         o.material.emissiveIntensity = selected === vessel ? 0.5 : 0.15
         o.userData.vessel = vessel
       }
     })
   }, [clone, probs, selected, layers])
-
   return (
     <Beating beat={layers.beat}>
-      <primitive
-        object={clone}
-        onClick={(e) => {
-          e.stopPropagation()
-          let o = e.object
-          if (o?.userData?.vessel) onSelect(o.userData.vessel)
-        }}
-      />
+      <primitive object={clone} onClick={(e) => { e.stopPropagation(); const v = e.object?.userData?.vessel; if (v) onSelect(v) }} />
     </Beating>
   )
 }
@@ -77,14 +74,14 @@ export default function HeartViewer({ probs, selected, onSelect, layers }) {
     <Canvas camera={{ position: [0.5, 0.5, 3.2] }} style={{ height: 480, background: '#f1f5f9', borderRadius: 10, border: '1px solid #e2e8f0' }}>
       <ambientLight intensity={1.15} />
       <directionalLight position={[4, 5, 6]} intensity={1.5} />
-      <directionalLight position={[-4, -2, -3]} intensity={0.5} />
       <hemisphereLight args={['#ffffff', '#cbd5e1', 0.55]} />
-      <Suspense fallback={null}>
-        <SegmentedHeart probs={probs} selected={selected} onSelect={onSelect} layers={layers} />
-      </Suspense>
+      <Guard fallback={null}>
+        <Suspense fallback={null}>
+          <Thorax probs={probs} selected={selected} onSelect={onSelect} layers={layers} />
+        </Suspense>
+      </Guard>
       <OrbitControls enablePan={false} minDistance={1.4} maxDistance={7} />
     </Canvas>
   )
 }
 export { riskColor, TARGET_NODES }
-useGLTF.preload('/anatomy/cardiotwin_anatomy.glb')
