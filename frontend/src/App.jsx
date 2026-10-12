@@ -184,6 +184,9 @@ function PerfPage({ metrics }) {
         <p style={{ fontSize: 12, color: '#475569' }}>61 stratified hold-out, 2000-sample bootstrap CIs, Brier included. Refit on 242 only. predictions: models/locked_test_predictions.csv</p>
       </div>
       <div style={{ display: 'flex', gap: 12, marginTop: 12, flexWrap: 'wrap' }}>
+        {!Object.keys(curves.roc || {}).length && (
+          <p style={{ fontSize: 12, color: '#b42318' }}>No curve data - restart backend (needs /api/curves from latest main) then refresh.</p>
+        )}
         <CurveChart title="ROC curves" xlabel="False positive rate" ylabel="True positive rate" series={curves.roc || {}} />
         <CurveChart title="Calibration (closer to diagonal is better)" xlabel="Predicted probability" ylabel="Observed frequency" series={curves.calibration || {}} />
       </div>
