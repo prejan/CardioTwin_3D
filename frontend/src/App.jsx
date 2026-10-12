@@ -65,7 +65,13 @@ const VESSELS = [
   { id: 'LCX', name: 'Left Circumflex', terr: 'Side + back wall. Often silent until lateral ischemia.' },
   { id: 'RCA', name: 'Right Coronary', terr: 'Right side + bottom wall and conduction system.' },
 ]
-const card = { background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10, padding: 12 }
+let THEME = 'light'
+try { if (localStorage.getItem('ct3d-theme') === 'dark') THEME = 'dark' } catch {}
+const card = {
+  get background() { return THEME === 'dark' ? '#111c30' : '#fff' },
+  get border() { return THEME === 'dark' ? '1px solid #26314a' : '1px solid #e2e8f0' },
+  borderRadius: 10, padding: 12,
+}
 
 function KpiRing({ v }) {
   const r = 20, c = 2 * Math.PI * r
@@ -300,6 +306,15 @@ export default function App() {
   const [help, setHelp] = useState(() => { try { return !localStorage.getItem('ct3d-hide-help') } catch { return true } })
   const [expanded, setExpanded] = useState(false)
   const [view, setView] = useState('front')
+  const [dark, setDark] = useState(() => THEME === 'dark')
+  const toggleDark = () => {
+    setDark(v => {
+      const nv = !v
+      THEME = nv ? 'dark' : 'light'
+      try { localStorage.setItem('ct3d-theme', THEME) } catch {}
+      return nv
+    })
+  }
 
   useEffect(() => {
     fetch('http://localhost:8000/api/samples').then(r => r.json()).then(d => {
@@ -352,13 +367,14 @@ export default function App() {
   const shown = samples.filter(s => !q || s.id.toLowerCase().includes(q.toLowerCase()) || s.truth.CAD.toLowerCase().includes(q.toLowerCase()))
 
   return (
-    <div style={{ fontFamily: 'Inter,system-ui,sans-serif', background: '#eef2f7', minHeight: '100vh', color: '#0f172a', display: 'flex', flexDirection: 'column' }}>
+    <div style={{ fontFamily: 'Inter,system-ui,sans-serif', background: dark ? '#0b1220' : '#eef2f7', minHeight: '100vh', color: dark ? '#e2e8f0' : '#0f172a', display: 'flex', flexDirection: 'column' }}>
       <header style={{ background: '#0f172a', color: 'white', padding: '10px 18px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
           <b style={{ fontSize: 17 }}>CardioTwin 3D</b>
           <button onClick={() => setTab('work')} style={{ padding: '5px 12px', borderRadius: 7, border: 0, background: tab === 'work' ? '#14b8a6' : '#1e293b', color: 'white' }}>Workstation</button>
           <button onClick={() => setTab('perf')} style={{ padding: '5px 12px', borderRadius: 7, border: 0, background: tab === 'perf' ? '#14b8a6' : '#1e293b', color: 'white' }}>Performance</button>
           <button onClick={() => setHelp(true)} style={{ padding: '5px 12px', borderRadius: 7, border: '1px solid #14b8a6', background: 'transparent', color: '#5eead4' }}>How to use</button>
+          <button onClick={toggleDark} title="Toggle dark theme" style={{ padding: '5px 12px', borderRadius: 7, border: '1px solid #475569', background: dark ? '#e2e8f0' : '#1e293b', color: dark ? '#0f172a' : '#e2e8f0' }}>{dark ? '☀ Light' : '◐ Dark'}</button>
         </div>
         <div style={{ fontSize: 12, color: '#cbd5e1' }}>{status}</div>
       </header>
@@ -379,7 +395,7 @@ export default function App() {
                   <button onClick={() => window.print()} style={{ padding: '4px 12px', borderRadius: 7, border: '1px solid #cbd5e1', background: '#fff' }}>⎙ Report</button>
                 </div>
               </div>
-              <HeartViewer key={(expanded ? 'full' : 'normal') + view} probs={probs} selected={selected} onSelect={setSelected} layers={layers} isolate={isolate} hasPred={!!res} tall={expanded} view={view} />
+              <HeartViewer key={(expanded ? 'full' : 'normal') + view + (dark ? '-d' : '-l')} probs={probs} selected={selected} onSelect={setSelected} layers={layers} isolate={isolate} hasPred={!!res} tall={expanded} view={view} dark={dark} />
               <div style={{ display: 'flex', gap: 10, marginTop: 8, fontSize: 12, flexWrap: 'wrap', userSelect: 'none', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, padding: '6px 10px' }}>
                 <label><input type="checkbox" checked={layers.lungs} onChange={e => setLayers({ ...layers, lungs: e.target.checked })} /> Lungs</label>
                 <label><input type="checkbox" checked={layers.skeleton} onChange={e => setLayers({ ...layers, skeleton: e.target.checked })} /> Ribs</label>

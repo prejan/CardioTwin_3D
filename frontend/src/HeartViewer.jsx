@@ -135,10 +135,10 @@ function Thorax({ probs, selected, onSelect, layers, isolate, hasPred }) {
 }
 
 const VIEW_POS = { front: [0.15, 0.3, 3.4], left: [3.2, 0.4, 0.6], top: [0.1, 3.2, 0.8] }
-export default function HeartViewer({ probs, selected, onSelect, layers, isolate, hasPred, tall, view }) {
+export default function HeartViewer({ probs, selected, onSelect, layers, isolate, hasPred, tall, view, dark }) {
   const cam = VIEW_POS[view] || VIEW_POS.front
   return (
-    <Canvas camera={{ position: tall ? [cam[0], cam[1], cam[2] * 0.72] : cam }} style={{ height: tall ? 'calc(100vh - 150px)' : 500, background: 'linear-gradient(180deg,#ffffff,#e9eff6)', borderRadius: 12, border: '1px solid #e2e8f0' }}>
+    <Canvas camera={{ position: tall ? [cam[0], cam[1], cam[2] * 0.72] : cam }} style={{ height: tall ? 'calc(100vh - 150px)' : 500, background: dark ? 'linear-gradient(180deg,#0b1220,#16233c)' : 'linear-gradient(180deg,#ffffff,#e9eff6)', borderRadius: 12, border: dark ? '1px solid #26314a' : '1px solid #e2e8f0' }}>
       <ambientLight intensity={1.15} />
       <directionalLight position={[4, 5, 6]} intensity={1.6} />
       <hemisphereLight args={['#ffffff', '#cbd5e1', 0.6]} />
