@@ -1,4 +1,4 @@
-import { Suspense, useMemo, useEffect, useRef, useState, Component } from 'react'
+import { Suspense, useMemo, useEffect, useRef, Component } from 'react'
 import { Canvas, useFrame, useLoader } from '@react-three/fiber'
 import { OrbitControls, Html } from '@react-three/drei'
 import * as THREE from 'three'
@@ -14,6 +14,8 @@ const LAYER_GROUPS = {
   skin: ['Layer_Skin'], muscle: ['Layer_Muscle'], skeleton: ['Layer_Skeleton'],
   lungs: ['Layer_Lungs'], diaphragm: ['Layer_Diaphragm'],
 }
+// Fixed spread around silhouette - never overlap, tuned front view
+const SPREAD = { LAD: [-0.1, 1.15, 0.5], LCX: [1.3, 0.3, 0.3], RCA: [-1.3, 0.2, 0.3] }
 
 function riskColor(p) {
   if (p == null) return '#9aa4b2'
@@ -45,13 +47,28 @@ function vesselOf(name) {
   return null
 }
 
+function Pill({ id, prob, selected, onSelect, position }) {
+  return (
+    <Html position={position} center distanceFactor={6} zIndexRange={[30, 10]} style={{ pointerEvents: 'auto' }}>
+      <button
+        onClick={(e) => { e.stopPropagation(); onSelect(id) }}
+        style={{
+          background: selected === id ? '#0f172a' : 'rgba(255,255,255,0.96)', color: selected === id ? 'white' : '#0f172a',
+          border: `2px solid ${riskColor(prob)}`, borderRadius: 999, padding: '2px 9px',
+          fontSize: 11, fontWeight: 800, cursor: 'pointer', whiteSpace: 'nowrap',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.2)', transform: selected === id ? 'scale(1.1)' : 'scale(1)',
+        }}
+      >
+        {id} {(prob ?? 0).toFixed(2)}
+      </button>
+    </Html>
+  )
+}
+
 function Thorax({ probs, selected, onSelect, layers, isolate, hasPred }) {
   const gltf = useLoader(GLTFLoader, '/anatomy/cardiotwin_anatomy.glb', (l) => { try { l.setMeshoptDecoder(MeshoptDecoder) } catch {} })
   const clone = useMemo(() => gltf.scene.clone(true), [gltf])
-  const [anchors, setAnchors] = useState({})
-
   useEffect(() => {
-    const boxes = { LAD: [], LCX: [], RCA: [] }
     clone.traverse((o) => {
       for (const [k, names] of Object.entries(LAYER_GROUPS)) {
         if (names.includes(o.name)) o.visible = layers[k] !== false
@@ -68,42 +85,14 @@ function Thorax({ probs, selected, onSelect, layers, isolate, hasPred }) {
         o.material.transparent = !!dimmed
         o.material.opacity = dimmed ? 0.18 : 1
         o.userData.vessel = v
-        o.geometry.computeBoundingBox()
-        const c = new THREE.Vector3()
-        o.geometry.boundingBox.getCenter(c)
-        o.localToWorld(c)
-        boxes[v].push(c)
       }
     })
-    const avg = {}
-    for (const [v, pts] of Object.entries(boxes)) {
-      if (!pts.length) continue
-      const m = new THREE.Vector3()
-      pts.forEach(p => m.add(p))
-      m.divideScalar(pts.length)
-      // push outward so label sits off the mesh
-      m.x *= 1.35; m.y += 0.12
-      avg[v] = m.toArray()
-    }
-    setAnchors(avg)
   }, [clone, probs, selected, layers, isolate])
-
   return (
     <Beating beat={layers.beat}>
       <primitive object={clone} onClick={(e) => { e.stopPropagation(); const v = e.object?.userData?.vessel; if (v) onSelect(v) }} />
-      {hasPred && Object.entries(anchors).map(([id, pos]) => (
-        <Html key={id} position={pos} center distanceFactor={5} style={{ pointerEvents: 'auto' }}>
-          <button
-            onClick={(e) => { e.stopPropagation(); onSelect(id) }}
-            style={{
-              background: selected === id ? '#0f172a' : 'white', color: selected === id ? 'white' : '#0f172a',
-              border: `2px solid ${riskColor(probs[id.toLowerCase()])}`, borderRadius: 999, padding: '4px 10px',
-              fontSize: 12, fontWeight: 800, cursor: 'pointer', whiteSpace: 'nowrap', boxShadow: '0 3px 10px rgba(0,0,0,0.22)',
-            }}
-          >
-            {id} {(probs[id.toLowerCase()] ?? 0).toFixed(2)}
-          </button>
-        </Html>
+      {hasPred && Object.entries(SPREAD).map(([id, pos]) => (
+        <Pill key={id} id={id} prob={probs[id.toLowerCase()]} selected={selected} onSelect={onSelect} position={pos} />
       ))}
     </Beating>
   )
@@ -111,7 +100,7 @@ function Thorax({ probs, selected, onSelect, layers, isolate, hasPred }) {
 
 export default function HeartViewer({ probs, selected, onSelect, layers, isolate, hasPred }) {
   return (
-    <Canvas camera={{ position: [0.15, 0.3, 3.0] }} style={{ height: 500, background: 'linear-gradient(180deg,#ffffff,#e9eff6)', borderRadius: 12, border: '1px solid #e2e8f0' }}>
+    <Canvas camera={{ position: [0.15, 0.3, 3.4] }} style={{ height: 500, background: 'linear-gradient(180deg,#ffffff,#e9eff6)', borderRadius: 12, border: '1px solid #e2e8f0' }}>
       <ambientLight intensity={1.15} />
       <directionalLight position={[4, 5, 6]} intensity={1.6} />
       <hemisphereLight args={['#ffffff', '#cbd5e1', 0.6]} />
@@ -120,7 +109,7 @@ export default function HeartViewer({ probs, selected, onSelect, layers, isolate
           <Thorax probs={probs} selected={selected} onSelect={onSelect} layers={layers} isolate={isolate} hasPred={hasPred} />
         </Suspense>
       </Guard>
-      <OrbitControls enablePan={false} minDistance={1.4} maxDistance={7} />
+      <OrbitControls enablePan={false} minDistance={1.6} maxDistance={7} />
     </Canvas>
   )
 }
