@@ -33,7 +33,33 @@ function CurveChart({ title, xlabel, ylabel, series }) {
 
 const RANGES = { Age: [20, 100], BP: [80, 250], PR: [40, 150], LDL: [10, 300], HDL: [10, 120], FBS: [60, 450], TG: [30, 1200], 'EF-TTE': [10, 80], Weight: [30, 200], BMI: [15, 50], ESR: [1, 100], HB: [8, 20] }
 const FIELDS = Object.keys(RANGES)
-const UNITS = { Age: 'years', BP: 'mmHg', PR: 'bpm', LDL: 'mg/dL', HDL: 'mg/dL', FBS: 'mg/dL', TG: 'mg/dL', 'EF-TTE': '%', Weight: 'kg', BMI: 'kg/m2', ESR: 'mm/h', HB: 'g/dL' }
+// Full 55-feature schema (dataset-observed). Groups mirror clinical workup.
+const GROUPS = [
+  { id: 'demo', title: 'Demographics', fields: ['Age', 'Weight', 'Length', 'Sex', 'BMI'] },
+  { id: 'hist', title: 'History & risk factors', fields: ['DM', 'HTN', 'Current Smoker', 'EX-Smoker', 'FH', 'Obesity', 'CRF', 'CVA', 'Airway disease', 'Thyroid Disease', 'CHF', 'DLP'] },
+  { id: 'exam', title: 'Clinical examination', fields: ['BP', 'PR', 'Edema', 'Weak Peripheral Pulse', 'Lung rales', 'Systolic Murmur', 'Diastolic Murmur', 'Typical Chest Pain', 'Dyspnea', 'Function Class', 'Atypical', 'Nonanginal', 'Exertional CP', 'LowTH Ang'] },
+  { id: 'ecg', title: 'ECG', fields: ['Q Wave', 'St Elevation', 'St Depression', 'Tinversion', 'LVH', 'Poor R Progression', 'BBB'] },
+  { id: 'lab', title: 'Laboratory', fields: ['FBS', 'CR', 'TG', 'LDL', 'HDL', 'BUN', 'ESR', 'HB', 'K', 'Na', 'WBC', 'Lymph', 'Neut', 'PLT'] },
+  { id: 'echo', title: 'Echocardiography', fields: ['EF-TTE', 'Region RWMA', 'VHD'] },
+]
+const CATS = {
+  'Sex': ['Male', 'Fmale'], 'Obesity': ['N', 'Y'], 'CRF': ['N', 'Y'], 'CVA': ['N', 'Y'],
+  'Airway disease': ['N', 'Y'], 'Thyroid Disease': ['N', 'Y'], 'CHF': ['N', 'Y'], 'DLP': ['N', 'Y'],
+  'Weak Peripheral Pulse': ['N', 'Y'], 'Lung rales': ['N', 'Y'], 'Systolic Murmur': ['N', 'Y'],
+  'Diastolic Murmur': ['N', 'Y'], 'Dyspnea': ['N', 'Y'], 'Atypical': ['N', 'Y'], 'Nonanginal': ['N', 'Y'],
+  'Exertional CP': ['N'], 'LowTH Ang': ['N', 'Y'], 'LVH': ['N', 'Y'], 'Poor R Progression': ['N', 'Y'],
+  'BBB': ['N', 'LBBB', 'RBBB'], 'VHD': ['N', 'mild', 'Moderate', 'Severe'],
+}
+const NUM_BOUNDS = {
+  Age: [20, 100], Weight: [30, 200], Length: [130, 210], BMI: [15, 50], DM: [0, 1], HTN: [0, 1],
+  'Current Smoker': [0, 1], 'EX-Smoker': [0, 1], FH: [0, 1], BP: [80, 250], PR: [40, 150], Edema: [0, 1],
+  'Typical Chest Pain': [0, 1], 'Function Class': [0, 3], 'Q Wave': [0, 1], 'St Elevation': [0, 1],
+  'St Depression': [0, 1], Tinversion: [0, 1], FBS: [60, 450], CR: [0.3, 3.0], TG: [30, 1200],
+  LDL: [10, 300], HDL: [10, 120], BUN: [5, 60], ESR: [1, 100], HB: [8, 20], K: [2.5, 7.0],
+  Na: [125, 160], WBC: [3000, 20000], Lymph: [5, 70], Neut: [20, 95], PLT: [20, 800],
+  'EF-TTE': [10, 80], 'Region RWMA': [0, 4],
+}
+const UNITS = { Age: 'years', BP: 'mmHg', PR: 'bpm', LDL: 'mg/dL', HDL: 'mg/dL', FBS: 'mg/dL', TG: 'mg/dL', 'EF-TTE': '%', Weight: 'kg', Length: 'cm', BMI: 'kg/m2', ESR: 'mm/h', HB: 'g/dL', CR: 'mg/dL', BUN: 'mg/dL', K: 'mEq/L', Na: 'mEq/L', WBC: 'cells/µL', Lymph: '%', Neut: '%', PLT: '1000/µL' }
 const VESSELS = [
   { id: 'LAD', name: 'Left Anterior Descending', terr: 'Front wall + apex. Proximal disease threatens a large territory.' },
   { id: 'LCX', name: 'Left Circumflex', terr: 'Side + back wall. Often silent until lateral ischemia.' },
@@ -222,7 +248,7 @@ function PerfPage({ metrics }) {
 
 export default function App() {
   const [tab, setTab] = useState('work')
-  const [form, setForm] = useState({ Age: 53, BP: 140, PR: 90, LDL: 120, HDL: 45, FBS: 90, TG: 150, 'EF-TTE': 55, Weight: 80, BMI: 27, ESR: 20, HB: 14 })
+  const [form, setForm] = useState({ Age: 53, Weight: 80, Length: 170, Sex: 'Male', BMI: 27, DM: 0, HTN: 1, 'Current Smoker': 0, 'EX-Smoker': 0, FH: 0, Obesity: 'N', CRF: 'N', CVA: 'N', 'Airway disease': 'N', 'Thyroid Disease': 'N', CHF: 'N', DLP: 'N', BP: 140, PR: 90, Edema: 0, 'Weak Peripheral Pulse': 'N', 'Lung rales': 'N', 'Systolic Murmur': 'N', 'Diastolic Murmur': 'N', 'Typical Chest Pain': 1, Dyspnea: 'N', 'Function Class': 0, Atypical: 'N', Nonanginal: 'N', 'Exertional CP': 'N', 'LowTH Ang': 'N', 'Q Wave': 0, 'St Elevation': 0, 'St Depression': 0, Tinversion: 0, LVH: 'N', 'Poor R Progression': 'N', BBB: 'N', FBS: 90, CR: 1, TG: 150, LDL: 120, HDL: 45, BUN: 18, ESR: 20, HB: 14, K: 4.2, Na: 141, WBC: 7000, Lymph: 32, Neut: 60, PLT: 210, 'EF-TTE': 55, 'Region RWMA': 0, VHD: 'N' })
   const [full, setFull] = useState(null)
   const [res, setRes] = useState(null)
   const [waterAll, setWaterAll] = useState({})
@@ -244,7 +270,7 @@ export default function App() {
       setSamples(d)
       if (d[0]) {
         setFull(d[0]); setPid(d[0].id)
-        const f = {}; Object.keys(RANGES).forEach(k => { if (d[0].features[k] !== undefined) f[k] = d[0].features[k] })
+        const f = {}; GROUPS.forEach(g => g.fields.forEach(k => { if (d[0].features[k] !== undefined) f[k] = d[0].features[k] }))
         setForm(prev => ({ ...prev, ...f }))
       }
     }).catch(() => setSamples([]))
@@ -254,8 +280,8 @@ export default function App() {
 
   const predict = async (of = null, ofull = null) => {
     const f0 = of || form
-    for (const f of Object.keys(RANGES)) {
-      const [lo, hi] = RANGES[f]; const v = Number(f0[f])
+    for (const f of Object.keys(NUM_BOUNDS)) {
+      const [lo, hi] = NUM_BOUNDS[f]; const v = Number(f0[f])
       if (isNaN(v) || v < lo || v > hi) { alert(`${f} must be ${lo}-${hi}`); return }
     }
     setLoading(true)
@@ -335,7 +361,7 @@ export default function App() {
                 <input value={q} onChange={e => setQ(e.target.value)} placeholder="Search P-001..." style={{ flex: 1, padding: 6, border: '1px solid #cbd5e1', borderRadius: 6 }} />
               </div>
               <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
-                <select value={pid} onChange={e => { const p = samples.find(s => s.id === e.target.value); setPid(e.target.value); if (p) { setFull(p); const f = {}; Object.keys(RANGES).forEach(k => { if (p.features[k] !== undefined) f[k] = p.features[k] }); const nf = { ...form, ...f }; setForm(nf); predict(nf, p) } }} style={{ flex: 1, padding: 6 }}>
+                <select value={pid} onChange={e => { const p = samples.find(s => s.id === e.target.value); setPid(e.target.value); if (p) { setFull(p); const f = {}; GROUPS.forEach(g => g.fields.forEach(k => { if (p.features[k] !== undefined) f[k] = p.features[k] })); const nf = { ...form, ...f }; setForm(nf); predict(nf, p) } }} style={{ flex: 1, padding: 6 }}>
                   {shown.slice(0, 303).map(s => <option key={s.id} value={s.id}>{s.id} - {s.truth.CAD} L:{s.truth.LAD} C:{s.truth.LCX} R:{s.truth.RCA}</option>)}
                 </select>
                 <button onClick={() => predict()} disabled={loading} style={{ padding: '8px 14px', background: '#0f766e', color: 'white', border: 0, borderRadius: 8 }}>{loading ? '...' : 'Predict'}</button>
@@ -350,10 +376,26 @@ export default function App() {
               ))}
             </div>
             <div style={card}>
-              <b>Vitals</b>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6, marginTop: 8 }}>
-                {Object.keys(RANGES).map(f => <label key={f} style={{ fontSize: 11 }}>{f}<br /><input type="number" value={form[f]} onChange={e => setForm({ ...form, [f]: e.target.value })} style={{ width: '100%', padding: 5 }} /></label>)}
-              </div>
+              <b>All 55 measurements - every SHAP bar editable</b>
+              <p style={{ fontSize: 11, color: '#475569' }}>Grouped like the clinical workup. Numerics validated, categories are dataset-observed options. Edit anything → Predict.</p>
+              {GROUPS.map((g, gi) => (
+                <details key={g.id} open={gi < 2} style={{ border: '1px solid #e2e8f0', borderRadius: 8, marginTop: 6 }}>
+                  <summary style={{ padding: '6px 10px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>{g.title} ({g.fields.length})</summary>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6, padding: 8 }}>
+                    {g.fields.map(f => (
+                      <label key={f} style={{ fontSize: 11 }}>{f}{UNITS[f] ? ` (${UNITS[f]})` : ''}<br />
+                        {CATS[f] ? (
+                          <select value={form[f] ?? ''} onChange={e => setForm({ ...form, [f]: e.target.value })} style={{ width: '100%', padding: 5 }}>
+                            {CATS[f].map(o => <option key={o} value={o}>{o}</option>)}
+                          </select>
+                        ) : (
+                          <input type="number" min={NUM_BOUNDS[f]?.[0]} max={NUM_BOUNDS[f]?.[1]} value={form[f] ?? ''} onChange={e => setForm({ ...form, [f]: e.target.value })} style={{ width: '100%', padding: 5 }} />
+                        )}
+                      </label>
+                    ))}
+                  </div>
+                </details>
+              ))}
             </div>
           </section>
         </main>

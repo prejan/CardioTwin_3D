@@ -16,11 +16,14 @@ FEATURES = json.loads((MODEL_DIR / "features.json").read_text())
 METRICS = json.loads((MODEL_DIR / "metrics.json").read_text()) if (MODEL_DIR / "metrics.json").exists() else {}
 RANGES = {
     "Age": (20, 100), "Weight": (30, 200), "Length": (130, 210), "BMI": (15, 50),
-    "BP": (80, 250), "PR": (40, 150), "FBS": (60, 450), "CR": (0.3, 3.0),
+    "DM": (0, 1), "HTN": (0, 1), "Current Smoker": (0, 1), "EX-Smoker": (0, 1), "FH": (0, 1),
+    "BP": (80, 250), "PR": (40, 150), "Edema": (0, 1), "Typical Chest Pain": (0, 1),
+    "Function Class": (0, 3), "Q Wave": (0, 1), "St Elevation": (0, 1), "St Depression": (0, 1),
+    "Tinversion": (0, 1), "FBS": (60, 450), "CR": (0.3, 3.0),
     "TG": (30, 1200), "LDL": (10, 300), "HDL": (10, 120), "BUN": (5, 60),
     "ESR": (1, 100), "HB": (8, 20), "K": (2.5, 7.0), "Na": (125, 160),
     "WBC": (3000, 20000), "Lymph": (5, 70), "Neut": (20, 95), "PLT": (20, 800),
-    "EF-TTE": (10, 80),
+    "EF-TTE": (10, 80), "Region RWMA": (0, 4),
 }
 MODELS = {}
 for t in ["cad", "lad", "lcx", "rca"]:
