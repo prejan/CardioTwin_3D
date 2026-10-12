@@ -55,6 +55,30 @@ def api_metrics():
         out["locked"] = json.loads(fp.read_text())
     return out
 
+@app.get("/api/curves")
+def api_curves():
+    import pandas as pd
+    from sklearn.metrics import roc_curve
+    fp = MODEL_DIR / "locked_test_predictions.csv"
+    if not fp.exists():
+        return {"roc": {}, "calibration": {}}
+    df = pd.read_csv(fp)
+    roc, cal = {}, {}
+    for t in ["CAD", "LAD", "LCX", "RCA"]:
+        d = df[df["target"] == t].sort_values("p")
+        y, p = d["y"].values, d["p"].values
+        fpr, tpr, _ = roc_curve(y, p)
+        idx = np.linspace(0, len(fpr) - 1, min(40, len(fpr))).astype(int)
+        roc[t] = [[round(float(fpr[i]), 3), round(float(tpr[i]), 3)] for i in idx]
+        bins = []
+        for b in range(10):
+            lo, hi = b / 10, (b + 1) / 10
+            m = (p >= lo) & (p < hi if b < 9 else p <= hi)
+            if m.sum() >= 2:
+                bins.append([round(float(p[m].mean()), 3), round(float(y[m].mean()), 3)])
+        cal[t] = bins
+    return {"roc": roc, "calibration": cal, "n_test": 61, "note": "locked 61 test predictions"}
+
 @app.get("/api/samples")
 def api_samples():
     import pandas as pd

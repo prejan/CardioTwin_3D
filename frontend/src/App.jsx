@@ -1,6 +1,36 @@
 import { useEffect, useState } from 'react'
 import HeartViewer, { riskColor } from './HeartViewer'
 
+const CURVE_COL = { CAD: '#0f766e', LAD: '#c2410c', LCX: '#7c3aed', RCA: '#1d4ed8' }
+
+function CurveChart({ title, xlabel, ylabel, series }) {
+  const W = 320, H = 250, P = 32
+  const pt = ([x, y]) => `${P + x * (W - 2 * P)},${H - P - y * (H - 2 * P)}`
+  const grid = [0, 0.25, 0.5, 0.75, 1]
+  return (
+    <div style={{ ...card, flex: 1, minWidth: 300 }}>
+      <div style={{ display: 'flex', gap: 10 }}>
+        {Object.keys(series).map(k => <span key={k} style={{ fontSize: 11 }}><span style={{ display: 'inline-block', width: 14, height: 3, background: CURVE_COL[k], marginRight: 4 }} />{k}</span>)}
+      </div>
+      <svg width="100%" viewBox={`0 0 ${W} ${H}`} style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8 }}>
+        {grid.map(g => (
+          <g key={g}>
+            <line x1={P} y1={H - P - g * (H - 2 * P)} x2={W - P} y2={H - P - g * (H - 2 * P)} stroke="#eef2f7" />
+            <line x1={P + g * (W - 2 * P)} y1={P} x2={P + g * (W - 2 * P)} y2={H - P} stroke="#eef2f7" />
+          </g>
+        ))}
+        <line x1={P} y1={H - P} x2={W - P} y2={P} stroke="#94a3b8" strokeDasharray="5 4" />
+        {Object.entries(series).map(([k, pts]) => (
+          <polyline key={k} points={(pts || []).map(pt).join(' ')} fill="none" stroke={CURVE_COL[k]} strokeWidth="2.5" strokeLinejoin="round" />
+        ))}
+        <text x={P} y={H - 8} fontSize="10" fill="#64748b">{xlabel}</text>
+        <text x={8} y={H / 2} fontSize="10" fill="#64748b" transform={`rotate(-90 12 ${H / 2})`} textAnchor="middle">{ylabel}</text>
+      </svg>
+      <div style={{ textAlign: 'center', fontSize: 12, color: '#475569', marginTop: 4 }}>{title}</div>
+    </div>
+  )
+}
+
 const RANGES = { Age: [20, 100], BP: [80, 250], PR: [40, 150], LDL: [10, 300], HDL: [10, 120], FBS: [60, 450], TG: [30, 1200], 'EF-TTE': [10, 80], Weight: [30, 200], BMI: [15, 50], ESR: [1, 100], HB: [8, 20] }
 const FIELDS = Object.keys(RANGES)
 const UNITS = { Age: 'years', BP: 'mmHg', PR: 'bpm', LDL: 'mg/dL', HDL: 'mg/dL', FBS: 'mg/dL', TG: 'mg/dL', 'EF-TTE': '%', Weight: 'kg', BMI: 'kg/m2', ESR: 'mm/h', HB: 'g/dL' }
@@ -114,6 +144,10 @@ function VesselDossier({ id, onPick, prob, thr, truth, waterAll, baseVal, model 
 
 function PerfPage({ metrics }) {
   const order = ['CAD', 'LAD', 'LCX', 'RCA']
+  const [curves, setCurves] = useState({ roc: {}, calibration: {} })
+  useEffect(() => {
+    fetch('http://localhost:8000/api/curves').then(r => r.json()).then(setCurves).catch(() => {})
+  }, [])
   const nest = metrics.nested_5fold || metrics
   const locked = (metrics.locked || {}).locked_test_61 || {}
   const row = (k, fmt) => (
@@ -148,6 +182,10 @@ function PerfPage({ metrics }) {
           </table>
         </div>
         <p style={{ fontSize: 12, color: '#475569' }}>61 stratified hold-out, 2000-sample bootstrap CIs, Brier included. Refit on 242 only. predictions: models/locked_test_predictions.csv</p>
+      </div>
+      <div style={{ display: 'flex', gap: 12, marginTop: 12, flexWrap: 'wrap' }}>
+        <CurveChart title="ROC curves" xlabel="False positive rate" ylabel="True positive rate" series={curves.roc || {}} />
+        <CurveChart title="Calibration (closer to diagonal is better)" xlabel="Predicted probability" ylabel="Observed frequency" series={curves.calibration || {}} />
       </div>
       <div style={{ ...card, marginTop: 12 }}>
         <b>Nested 5-fold OOF (all 303, development reference)</b>
