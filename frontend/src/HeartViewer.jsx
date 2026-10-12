@@ -15,7 +15,7 @@ const LAYER_GROUPS = {
   lungs: ['Layer_Lungs'], diaphragm: ['Layer_Diaphragm'],
 }
 // Fixed spread around silhouette - never overlap, tuned front view
-const SPREAD = { LAD: [-0.1, 1.15, 0.5], LCX: [1.3, 0.3, 0.3], RCA: [-1.3, 0.2, 0.3] }
+const SPREAD = { LAD: [-0.62, 0.62, 0.6], LCX: [1.05, 0.1, 0.5], RCA: [-1.05, 0.05, 0.5] }
 
 function riskColor(p) {
   if (p == null) return '#9aa4b2'
