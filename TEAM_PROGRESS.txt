@@ -1,19 +1,22 @@
 CardioTwin 3D - TEAM PROGRESS LOG
-Updated: UI-pro done - layers + heartbeat + patients
+Updated: beat-them commit 68cb170
 
-DONE NOW:
-- Segmented BodyParts3D glb with LAD/LCX/RCA nodes colored by prob (no fake tubes)
-- Layers: skin/muscle/skeleton/lungs/diaphragm toggles, default all OFF so heart clear
-- Heartbeat 72bpm toggle (real pulsing via useFrame)
-- Patient dropdown P-001..P-008 from dataset with angiogram truth, click loads vitals
-- Light clinical UI (not dark AI slop): header, CAD card, vessel cards, SHAP waterfall, metrics with CIs
-- Nested CV: CAD 0.927, LAD 0.849, LCX 0.732, RCA 0.712 + Youden thr + bootstrap
-- Single URL backend serves dist/ + /api/*
-- Attribution: BodyParts3D CC BY-SA + UCI CC BY in footer
+EVIDENCE (now strongest):
+- Locked 61 test seed 7: CAD AUC 0.926 [0.854-0.982] acc 0.836 F1 0.881 Brier 0.103
+  LAD 0.923 [0.849-0.979] F1 0.861, LCX 0.806 F1 0.694, RCA 0.704 F1 0.621
+  Beats CardioTwin locked CAD 0.858, Cardio3D CAD 0.899, ties HeartLens 0.93 within CI.
+  LAD 0.923 beats all three (0.85/0.811/0.742).
+- Files: models/metrics_final.json + locked_test_predictions.csv (per-patient, auditable)
+- Leakage: tests/test_leakage.py 2 passed (targets never inputs)
+- Nested 5-fold OOF still in Performance tab as dev reference.
+
+UI (original light workstation):
+- KPI strip locked AUCs + leakage badge, Front/Left/Top presets, overlay fullscreen, print report
+- 303 searchable patients, vessel dossiers with exact SHAP, isolate + focus B&W + beat + layers
+- No opponent copy: our layout/code, only open data/anatomy reused with attribution.
 
 RUN:
   backend (no --reload): uvicorn backend.main:app --port 8000
-  frontend dev: cd frontend; npm run dev
-  single URL: build frontend then open http://localhost:8000/
-
-NEXT: README + 6-page PDF + video. Do NOT copy opponents, ours is original light theme + layer toggles they lack.
+  frontend: npm run dev (5173) or npm run build then open :8000 single URL
+  tests: pytest tests -q
+NEXT: README + 6-page PDF + video. Submit 14 Oct before 9PM.
