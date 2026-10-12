@@ -87,11 +87,14 @@ function Thorax({ probs, selected, onSelect, layers, isolate, hasPred }) {
         o.material.opacity = dimmed ? 0.18 : 1
         o.userData.vessel = v
       } else if (layers.focusBW) {
-        o.material.color = GRAY
+        o.material.color.set('#a8b0bc')
         o.material.emissive = new THREE.Color('#000000')
         o.material.emissiveIntensity = 0
-        o.material.roughness = 0.85
+        o.material.roughness = 0.9
         o.material.metalness = 0
+        o.material.transparent = false
+        o.material.opacity = 1
+        o.material.needsUpdate = true
       }
     })
   }, [clone, probs, selected, layers, isolate])
