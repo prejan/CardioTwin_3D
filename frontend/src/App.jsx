@@ -125,6 +125,52 @@ function Bar({ v }) {
   )
 }
 
+function Shot({ src, alt }) {
+  const [ok, setOk] = useState(true)
+  if (!ok) return null
+  return <img src={src} alt={alt} onError={() => setOk(false)} style={{ width: '100%', borderRadius: 8, border: '1px solid #e2e8f0', marginTop: 6 }} />
+}
+
+function HowToUse({ onOpen }) {
+  const steps = [
+    { t: '1. Pick any of 303 real patients', d: 'Search P-001… or filter CAD/Normal. Vitals load from the dataset row; angiogram truth shows beside. Nothing is dummy - every row predicts live.', img: '/howto/step1-patients.png' },
+    { t: '2. Press Predict', d: 'Four calibrated models (CAD + LAD/LCX/RCA) run on all 55 measurements. 3D vessels recolor, bars fill, SHAP dossier fills. Green <0.40, orange <0.70, red above.', img: '/howto/step2-predict.png' },
+    { t: '3. Read the heart', d: 'Pills LAD/LCX/RCA show live scores on the vessels. Click a vessel, pill, or side card - all three stay in sync. Isolate dims the rest; Vessel focus B&W grays everything but coronaries.', img: '/howto/step3-heart.png' },
+    { t: '4. Open the vessel dossier', d: 'Below the heart: prob vs threshold, pushing-up/pulling-down top-3, exact SHAP bars with % shares, Top 12 / Show all. Edit any measurement above and re-predict to see bars move.', img: '/howto/step4-dossier.png' },
+    { t: '5. Layers, views, Performance', d: 'Toggle Lungs/Ribs/Skin/Muscle, Heartbeat 72, Front/Left/Top views, Full screen for presenting. Performance tab: locked-61 + nested tables with ROC + calibration graphs.', img: '/howto/step5-perf.png' },
+  ]
+  return (
+    <div style={{ maxWidth: 900, margin: '0 auto', padding: 16, width: '100%' }}>
+      <div style={{ ...card, padding: 18 }}>
+        <h2 style={{ margin: '4px 0' }}>How to use CardioTwin 3D (2 minutes)</h2>
+        <p style={{ fontSize: 13, color: '#475569' }}>Drop screenshots in <code>frontend/public/howto/step1-patients.png … step5-perf.png</code> and they appear under each step automatically. Educational decision-support only - not a diagnosis.</p>
+        {steps.map((s, i) => (
+          <div key={i} style={{ borderTop: '1px solid #eef2f7', padding: '10px 0' }}>
+            <b style={{ fontSize: 14 }}>{s.t}</b>
+            <p style={{ fontSize: 13, color: '#334155' }}>{s.d}</p>
+            <Shot src={s.img} alt={s.t} />
+          </div>
+        ))}
+        <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+          <button onClick={() => { try { localStorage.setItem('ct3d-hide-help', '1') } catch {} ; onOpen(false) }} style={{ padding: '9px 18px', borderRadius: 8, border: 0, background: '#0f766e', color: 'white', fontWeight: 700 }}>Open workstation →</button>
+          <button onClick={() => onOpen(true)} style={{ padding: '9px 14px', borderRadius: 8, border: '1px solid #cbd5e1', background: '#fff' }}>Keep guide open</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+  const n = Number(v)
+  if (v == null || isNaN(n)) return <span style={{ fontSize: 12, color: '#64748b' }}>--</span>
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      <div style={{ flex: 1, height: 8, background: '#eef2f7', borderRadius: 4 }}>
+        <div style={{ width: `${n * 100}%`, height: 8, borderRadius: 4, background: riskColor(n) }} />
+      </div>
+      <b style={{ fontSize: 13, minWidth: 92, textAlign: 'right' }}>{n.toFixed(3)} {n >= 0.7 ? 'High' : n >= 0.4 ? 'Mid' : 'Low'}</b>
+    </div>
+  )
+}
+
 function VesselDossier({ id, onPick, prob, thr, truth, waterAll, baseVal, model }) {
   const [all, setAll] = useState(false)
   const v = VESSELS.find(x => x.id === id)
@@ -262,6 +308,7 @@ export default function App() {
   const [layers, setLayers] = useState({ skin: false, muscle: false, skeleton: false, lungs: false, diaphragm: false, beat: true, focusBW: true })
   const [loading, setLoading] = useState(false)
   const [status, setStatus] = useState('checking...')
+  const [help, setHelp] = useState(() => { try { return !localStorage.getItem('ct3d-hide-help') } catch { return true } })
   const [expanded, setExpanded] = useState(false)
   const [view, setView] = useState('front')
 
@@ -322,12 +369,13 @@ export default function App() {
           <b style={{ fontSize: 17 }}>CardioTwin 3D</b>
           <button onClick={() => setTab('work')} style={{ padding: '5px 12px', borderRadius: 7, border: 0, background: tab === 'work' ? '#14b8a6' : '#1e293b', color: 'white' }}>Workstation</button>
           <button onClick={() => setTab('perf')} style={{ padding: '5px 12px', borderRadius: 7, border: 0, background: tab === 'perf' ? '#14b8a6' : '#1e293b', color: 'white' }}>Performance</button>
+          <button onClick={() => setHelp(true)} style={{ padding: '5px 12px', borderRadius: 7, border: '1px solid #14b8a6', background: 'transparent', color: '#5eead4' }}>How to use</button>
         </div>
         <div style={{ fontSize: 12, color: '#cbd5e1' }}>{status}</div>
       </header>
       <div style={{ background: '#fef9c3', padding: '6px 18px', fontSize: 12 }}>Educational decision-support only - not a diagnosis. No external validation.</div>
       {tab === 'work' && <KpiStrip metrics={metrics} />}
-      {tab === 'perf' ? <PerfPage metrics={metrics} /> : (
+      {help ? <HowToUse onOpen={(stay) => { if (!stay) setHelp(false) }} /> : tab === 'perf' ? <PerfPage metrics={metrics} /> : (
         <main style={{ display: 'grid', gridTemplateColumns: '1.45fr 1fr', gap: 12, padding: 12, maxWidth: 1440, margin: '0 auto', width: '100%', flex: 1, alignItems: 'start' }}>
           <section style={{ display: 'flex', flexDirection: 'column', gap: 12, minHeight: 0 }}>
             <div id="heart-card" className={expanded ? 'expanded' : ''} style={{ ...card, padding: 10, background: '#fff' }}>
