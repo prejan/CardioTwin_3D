@@ -33,7 +33,7 @@ export default function App() {
   const [selected, setSelected] = useState('LAD')
   const [isolate, setIsolate] = useState(true)
   const [q, setQ] = useState('')
-  const [layers, setLayers] = useState({ skin: false, muscle: false, skeleton: false, lungs: false, diaphragm: false, beat: true })
+  const [layers, setLayers] = useState({ skin: false, muscle: false, skeleton: false, lungs: false, diaphragm: false, beat: true, focusBW: true })
   const [loading, setLoading] = useState(false)
   const [status, setStatus] = useState('checking backend...')
 
@@ -93,6 +93,7 @@ export default function App() {
               <label><input type="checkbox" checked={layers.skin} onChange={e => setLayers({ ...layers, skin: e.target.checked })} /> Skin</label>
               <label><input type="checkbox" checked={layers.muscle} onChange={e => setLayers({ ...layers, muscle: e.target.checked })} /> Muscle</label>
               <label><input type="checkbox" checked={layers.beat} onChange={e => setLayers({ ...layers, beat: e.target.checked })} /> Heartbeat 72bpm</label>
+              <label title="Grays out everything except LAD/LCX/RCA for max clarity"><input type="checkbox" checked={layers.focusBW} onChange={e => setLayers({ ...layers, focusBW: e.target.checked })} /> Vessel focus B&W</label>
             </div>
           </div>
           <div style={{ ...card, marginTop: 12 }}>

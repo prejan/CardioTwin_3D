@@ -69,22 +69,29 @@ function Thorax({ probs, selected, onSelect, layers, isolate, hasPred }) {
   const gltf = useLoader(GLTFLoader, '/anatomy/cardiotwin_anatomy.glb', (l) => { try { l.setMeshoptDecoder(MeshoptDecoder) } catch {} })
   const clone = useMemo(() => gltf.scene.clone(true), [gltf])
   useEffect(() => {
+    const GRAY = new THREE.Color('#a8b0bc')
     clone.traverse((o) => {
       for (const [k, names] of Object.entries(LAYER_GROUPS)) {
         if (names.includes(o.name)) o.visible = layers[k] !== false
       }
       if (!o.isMesh) return
       const v = vesselOf(o.name || '')
+      o.material = o.material.clone()
       if (v) {
         const p = probs[v.toLowerCase()]
-        o.material = o.material.clone()
         o.material.color = new THREE.Color(riskColor(p))
         o.material.emissive = new THREE.Color(riskColor(p))
         const dimmed = isolate && selected && selected !== v
-        o.material.emissiveIntensity = selected === v ? 0.65 : 0.2
+        o.material.emissiveIntensity = layers.focusBW ? (selected === v ? 0.9 : 0.45) : (selected === v ? 0.65 : 0.2)
         o.material.transparent = !!dimmed
         o.material.opacity = dimmed ? 0.18 : 1
         o.userData.vessel = v
+      } else if (layers.focusBW) {
+        o.material.color = GRAY
+        o.material.emissive = new THREE.Color('#000000')
+        o.material.emissiveIntensity = 0
+        o.material.roughness = 0.85
+        o.material.metalness = 0
       }
     })
   }, [clone, probs, selected, layers, isolate])
