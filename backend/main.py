@@ -45,7 +45,7 @@ def validate(patient: dict):
 
 @app.get("/health")
 def health():
-    return {"ok": True, "loaded": list(MODELS.keys()), "n_features": len(FEATURES), "metrics": METRICS}
+    return {"ok": True, "build": "shapfix-57-v2", "loaded": list(MODELS.keys()), "n_features": len(FEATURES), "metrics": METRICS}
 
 @app.get("/api/metrics")
 def api_metrics():

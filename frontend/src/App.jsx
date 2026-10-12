@@ -24,7 +24,7 @@ function Bar({ v }) {
   )
 }
 
-function VesselDossier({ id, prob, thr, truth, waterAll, baseVal, model }) {
+function VesselDossier({ id, onPick, prob, thr, truth, waterAll, baseVal, model }) {
   const [all, setAll] = useState(false)
   const v = VESSELS.find(x => x.id === id)
   const raw = waterAll?.[id.toLowerCase()] || []
@@ -38,26 +38,31 @@ function VesselDossier({ id, prob, thr, truth, waterAll, baseVal, model }) {
   const p = Number(prob); const t = Number(thr)
   return (
     <div style={{ ...card }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <b style={{ fontSize: 14 }}>{id} dossier - {isNaN(p) ? '--' : p.toFixed(3)} vs thr {isNaN(t) ? '0.50' : t.toFixed(2)} {truth ? `(angio ${truth})` : ''}</b>
-        <button onClick={() => setAll(!all)} style={{ fontSize: 12, padding: '4px 10px', borderRadius: 6, border: '1px solid #cbd5e1', background: '#f8fafc' }}>{all ? 'Top 12' : 'Show all'}</button>
+      <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+        {['CAD', 'LAD', 'LCX', 'RCA'].map(x => (
+          <button key={x} onClick={() => onPick(x === 'CAD' ? null : x)} title={x === 'CAD' ? 'Overall (3D shows vessels)' : `Show ${x}`}
+            style={{ padding: '5px 14px', borderRadius: 999, border: '1px solid #cbd5e1', background: id === x ? '#0f766e' : '#fff', color: id === x ? '#fff' : '#0f172a', fontWeight: 700, fontSize: 12 }}>
+            {x}
+          </button>
+        ))}
+        <span style={{ flex: 1 }} />
+        <button onClick={() => setAll(!all)} style={{ fontSize: 12, padding: '4px 10px', borderRadius: 6, border: '1px solid #cbd5e1', background: '#f8fafc' }}>{all ? 'Top 12 only' : 'Show all'}</button>
       </div>
+      <b style={{ fontSize: 14 }}>{id} - {isNaN(p) ? '--' : p.toFixed(3)} vs thr {isNaN(t) ? '0.50' : t.toFixed(2)} {truth ? `(angio ${truth})` : ''}</b>
       <p style={{ fontSize: 12, color: '#475569' }}>{v.name}: {v.terr} Exact SHAP of the {model || 'calibrated'} model, avg {isNaN(Number(baseVal)) ? '--' : Number(baseVal).toFixed(2)}. % = share of absolute contribution. Probability is calibrated.</p>
-      {err && <p style={{ fontSize: 12, color: '#b42318' }}>Explain note: {String(err.error).slice(0, 160)}</p>}
+      {err && <p style={{ fontSize: 12, color: '#b42318' }}>Backend still old - restart uvicorn to load shapfix (health must show build shapfix-57-v2). Got: {String(err.error).slice(0, 120)}</p>}
       {!!up.length && <p style={{ fontSize: 12 }}><b>Pushing up:</b> {up.map(w => `${w.feature} (${fv(w)})`).join(', ')}</p>}
       {!!dn.length && <p style={{ fontSize: 12 }}><b>Pulling down:</b> {dn.map(w => `${w.feature} (${fv(w)})`).join(', ')}</p>}
-      <div style={{ fontSize: 11, display: 'flex', justifyContent: 'space-between', color: '#64748b' }}><span>← lowers</span><span>raises →</span></div>
       {rows.map((w, i) => (
-        <div key={i} style={{ display: 'flex', gap: 8, fontSize: 12, padding: '3px 0', borderBottom: '1px solid #f1f5f9', alignItems: 'center' }}>
-          <span style={{ width: 175 }}>{w.feature} <span style={{ color: '#64748b' }}>{fv(w)}</span></span>
-          <div style={{ flex: 1, height: 7, background: '#eef2f7', borderRadius: 4, position: 'relative' }}>
-            <div style={{ position: 'absolute', left: '50%', top: 0, bottom: 0, width: 1, background: '#cbd5e1' }} />
-            <div style={{ position: 'absolute', top: 0, bottom: 0, borderRadius: 4, background: w.shap >= 0 ? '#d92d20' : '#12805c', left: w.shap >= 0 ? '50%' : `${50 - Math.min(50, w.pct / 2)}%`, width: `${Math.min(50, w.pct / 2)}%` }} />
+        <div key={i} style={{ display: 'flex', gap: 10, fontSize: 13, padding: '4px 0', alignItems: 'center' }}>
+          <span style={{ width: 200 }}>{w.feature}</span>
+          <div style={{ flex: 1, height: 12, background: '#eef2f7', borderRadius: 3 }}>
+            <div style={{ height: 12, borderRadius: 3, background: '#0f766e', width: `${Math.min(100, w.pct * 3.2)}%` }} />
           </div>
-          <b style={{ width: 92, textAlign: 'right', color: w.shap >= 0 ? '#b42318' : '#12805c' }}>{w.shap >= 0 ? '+' : ''}{Number(w.shap).toFixed(4)} ({Number(w.pct).toFixed(1)}%)</b>
+          <span style={{ width: 52, textAlign: 'right' }}>{w.pct.toFixed(1)}%</span>
         </div>
       ))}
-      {!rows.length && <p style={{ fontSize: 12, color: '#64748b' }}>Run Predict.</p>}
+      {!rows.length && <p style={{ fontSize: 12, color: '#64748b' }}>Run Predict (backend must show build shapfix-57-v2 in /health).</p>}
     </div>
   )
 }
@@ -120,7 +125,7 @@ export default function App() {
       }
     }).catch(() => setSamples([]))
     fetch('http://localhost:8000/api/metrics').then(r => r.json()).then(setMetrics).catch(() => {})
-    fetch('http://localhost:8000/health').then(r => r.json()).then(h => setStatus(`Backend OK - ${(h.loaded || []).join(',')} | ${samples.length || 303} pts`)).catch(() => setStatus('Backend offline'))
+    fetch('http://localhost:8000/health').then(r => r.json()).then(h => setStatus(`Backend OK - ${(h.loaded || []).join(',')} | ${h.build || 'OLD-no-shapfix-RESTART'} | ${samples.length || 303} pts`)).catch(() => setStatus('Backend offline'))
   }, [])
 
   const predict = async (of = null, ofull = null) => {
@@ -192,7 +197,7 @@ export default function App() {
                 <label><input type="checkbox" checked={layers.focusBW} onChange={e => setLayers({ ...layers, focusBW: e.target.checked })} /> Vessel focus B&W</label>
               </div>
             </div>
-            <VesselDossier id={selected} prob={res?.[selected.toLowerCase() + '_prob']} thr={res?.thresholds?.[selected.toLowerCase()]} truth={full?.truth?.[selected]} waterAll={waterAll} baseVal={baseAll[selected.toLowerCase()]} model={metrics[selected]?.model} />
+            <VesselDossier id={selected} onPick={(x) => { if (x) setSelected(x) }} prob={res?.[selected.toLowerCase() + '_prob']} thr={res?.thresholds?.[selected.toLowerCase()]} truth={full?.truth?.[selected]} waterAll={waterAll} baseVal={baseAll[selected.toLowerCase()]} model={metrics[selected]?.model} />
           </section>
           <section style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div style={card}>
