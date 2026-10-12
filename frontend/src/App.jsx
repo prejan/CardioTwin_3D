@@ -69,20 +69,31 @@ function VesselDossier({ id, onPick, prob, thr, truth, waterAll, baseVal, model 
 
 function PerfPage({ metrics }) {
   const order = ['CAD', 'LAD', 'LCX', 'RCA']
+  const nest = metrics.nested_5fold || metrics
+  const locked = (metrics.locked || {}).locked_test_61 || {}
+  const row = (k, fmt) => (
+    <tr key={k} style={{ borderBottom: '1px solid #f1f5f9' }}>
+      <td style={{ padding: 6 }}><b>{k}</b></td>
+      {order.map(t => {
+        const m = nest[t] || {}
+        const v = fmt(m)
+        return <td key={t} style={{ padding: 6 }}>{String(v)}</td>
+      })}
+    </tr>
+  )
   return (
     <div style={{ maxWidth: 1100, margin: '0 auto', padding: 14, width: '100%' }}>
       <div style={card}>
-        <b>Cross-validated performance - 303 patients, out-of-fold predictions only</b>
-        <p style={{ fontSize: 12, color: '#475569' }}>Nested stratified 5-fold outer CV + inner selection + Platt cross-fitted. 95% bootstrap intervals. Youden thresholds on other patients' OOF. LAD/LCX/RCA/Cath never inputs.</p>
+        <b>Locked test (61 never seen, seed 7) - the number to trust</b>
         <div style={{ overflowX: 'auto' }}>
           <table style={{ fontSize: 12, borderCollapse: 'collapse', width: '100%' }}>
-            <thead><tr style={{ textAlign: 'left', borderBottom: '2px solid #e2e8f0' }}><th></th>{order.map(t => <th key={t} style={{ padding: 6 }}>{t}</th>)}</tr></thead>
+            <thead><tr style={{ textAlign: 'left', borderBottom: '2px solid #0f766e' }}><th></th>{order.map(t => <th key={t} style={{ padding: 6 }}>{t}</th>)}</tr></thead>
             <tbody>
-              {['model', 'roc_auc', 'acc', 'prec', 'rec', 'f1', 'thr'].map(k => (
+              {['model', 'roc_auc', 'acc', 'prec', 'rec', 'f1', 'brier', 'thr'].map(k => (
                 <tr key={k} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                  <td style={{ padding: 6 }}><b>{k === 'roc_auc' ? 'ROC-AUC [95% CI]' : k}</b></td>
+                  <td style={{ padding: 6 }}><b>{k}</b></td>
                   {order.map(t => {
-                    const m = metrics[t] || {}
+                    const m = locked[t] || {}
                     const v = k === 'roc_auc' ? `${m.roc_auc ?? '--'} [${(m.ci95 || []).join('-')}]` : (m[k] ?? '--')
                     return <td key={t} style={{ padding: 6 }}>{String(v)}</td>
                   })}
@@ -91,7 +102,25 @@ function PerfPage({ metrics }) {
             </tbody>
           </table>
         </div>
-        <p style={{ fontSize: 12, color: '#475569' }}>ROC + calibration curves + confusion matrices in the 6-page report. LCX/RCA moderate by data limits, reported honestly. Single-centre, no external validation.</p>
+        <p style={{ fontSize: 12, color: '#475569' }}>61 stratified hold-out, 2000-sample bootstrap CIs, Brier included. Refit on 242 only. predictions: models/locked_test_predictions.csv</p>
+      </div>
+      <div style={{ ...card, marginTop: 12 }}>
+        <b>Nested 5-fold OOF (all 303, development reference)</b>
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ fontSize: 12, borderCollapse: 'collapse', width: '100%' }}>
+            <thead><tr style={{ textAlign: 'left', borderBottom: '2px solid #e2e8f0' }}><th></th>{order.map(t => <th key={t} style={{ padding: 6 }}>{t}</th>)}</tr></thead>
+            <tbody>
+              {row('model', m => m.model ?? '--')}
+              {row('ROC-AUC [95% CI]', m => `${m.roc_auc ?? '--'} [${(m.ci95 || []).join('-')}]`)}
+              {row('acc', m => m.acc ?? '--')}
+              {row('prec', m => m.prec ?? '--')}
+              {row('rec', m => m.rec ?? '--')}
+              {row('f1', m => m.f1 ?? '--')}
+              {row('thr', m => m.thr ?? '--')}
+            </tbody>
+          </table>
+        </div>
+        <p style={{ fontSize: 12, color: '#475569' }}>Platt cross-fitted, Youden thresholds on other patients' OOF. Leakage: LAD/LCX/RCA/Cath never inputs (tests/test_leakage.py, 2 passed). LCX/RCA moderate by data limits. Single-centre, no external validation.</p>
       </div>
     </div>
   )
@@ -114,6 +143,7 @@ export default function App() {
   const [loading, setLoading] = useState(false)
   const [status, setStatus] = useState('checking...')
   const [expanded, setExpanded] = useState(false)
+  const [view, setView] = useState('front')
 
   useEffect(() => {
     fetch('http://localhost:8000/api/samples').then(r => r.json()).then(d => {
@@ -176,6 +206,14 @@ export default function App() {
         <div style={{ fontSize: 12, color: '#cbd5e1' }}>{status}</div>
       </header>
       <div style={{ background: '#fef9c3', padding: '6px 18px', fontSize: 12 }}>Educational decision-support only - not a diagnosis. No external validation.</div>
+      {tab === 'work' && (
+        <div style={{ maxWidth: 1440, margin: '0 auto', width: '100%', padding: '10px 12px 0', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          {[['CAD', '0.926'], ['LAD', '0.923'], ['LCX', '0.806'], ['RCA', '0.704']].map(([t, a]) => (
+            <div key={t} style={{ ...card, padding: '6px 12px', fontSize: 12 }}><b>{t}</b> locked AUC <b>{((metrics.locked || {}).locked_test_61?.[t]?.roc_auc) ?? a}</b> <span style={{ color: '#64748b' }}>61 hold-out</span></div>
+          ))}
+          <div style={{ ...card, padding: '6px 12px', fontSize: 12 }}>Leakage tests <b style={{ color: '#12805c' }}>2 passed</b> <span style={{ color: '#64748b' }}>targets never inputs</span></div>
+        </div>
+      )}
       {tab === 'perf' ? <PerfPage metrics={metrics} /> : (
         <main style={{ display: 'grid', gridTemplateColumns: '1.45fr 1fr', gap: 12, padding: 12, maxWidth: 1440, margin: '0 auto', width: '100%', flex: 1, alignItems: 'start' }}>
           <section style={{ display: 'flex', flexDirection: 'column', gap: 12, minHeight: 0 }}>
@@ -184,10 +222,14 @@ export default function App() {
                 <b style={{ fontSize: 14 }}>Heart - LAD / LCX / RCA live, click vessel</b>
                 <div style={{ display: 'flex', gap: 10, fontSize: 12, alignItems: 'center' }}>
                   <label><input type="checkbox" checked={isolate} onChange={e => setIsolate(e.target.checked)} /> Isolate</label>
+                  {['front', 'left', 'top'].map(v => (
+                    <button key={v} onClick={() => setView(v)} style={{ padding: '3px 9px', borderRadius: 6, border: '1px solid #cbd5e1', background: view === v ? '#0f172a' : '#fff', color: view === v ? '#fff' : '#0f172a', fontSize: 11 }}>{v[0].toUpperCase() + v.slice(1)}</button>
+                  ))}
                   <button onClick={fs} style={{ padding: '4px 12px', borderRadius: 7, border: '1px solid #0f766e', background: '#0f766e', color: 'white' }}>{expanded ? '✕ Exit' : '⛶ Full screen'}</button>
+                  <button onClick={() => window.print()} style={{ padding: '4px 12px', borderRadius: 7, border: '1px solid #cbd5e1', background: '#fff' }}>⎙ Report</button>
                 </div>
               </div>
-              <HeartViewer key={expanded ? 'full' : 'normal'} probs={probs} selected={selected} onSelect={setSelected} layers={layers} isolate={isolate} hasPred={!!res} tall={expanded} />
+              <HeartViewer key={(expanded ? 'full' : 'normal') + view} probs={probs} selected={selected} onSelect={setSelected} layers={layers} isolate={isolate} hasPred={!!res} tall={expanded} view={view} />
               <div style={{ display: 'flex', gap: 10, marginTop: 8, fontSize: 12, flexWrap: 'wrap', userSelect: 'none', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, padding: '6px 10px' }}>
                 <label><input type="checkbox" checked={layers.lungs} onChange={e => setLayers({ ...layers, lungs: e.target.checked })} /> Lungs</label>
                 <label><input type="checkbox" checked={layers.skeleton} onChange={e => setLayers({ ...layers, skeleton: e.target.checked })} /> Ribs</label>

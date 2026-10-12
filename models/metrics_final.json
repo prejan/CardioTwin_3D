@@ -1,0 +1,67 @@
+{
+  "sklearn": "1.2.2",
+  "seed_locked": 7,
+  "n": 303,
+  "locked_test_61": {
+    "CAD": {
+      "model": "LogisticRegression",
+      "roc_auc": 0.926,
+      "ci95": [
+        0.854,
+        0.982
+      ],
+      "acc": 0.836,
+      "prec": 0.925,
+      "rec": 0.841,
+      "f1": 0.881,
+      "brier": 0.103,
+      "thr": 0.65,
+      "n_test": 61
+    },
+    "LAD": {
+      "model": "RandomForestClassifier",
+      "roc_auc": 0.923,
+      "ci95": [
+        0.849,
+        0.979
+      ],
+      "acc": 0.836,
+      "prec": 0.886,
+      "rec": 0.838,
+      "f1": 0.861,
+      "brier": 0.118,
+      "thr": 0.6,
+      "n_test": 61
+    },
+    "LCX": {
+      "model": "XGBClassifier",
+      "roc_auc": 0.806,
+      "ci95": [
+        0.678,
+        0.919
+      ],
+      "acc": 0.754,
+      "prec": 0.607,
+      "rec": 0.81,
+      "f1": 0.694,
+      "brier": 0.176,
+      "thr": 0.4,
+      "n_test": 61
+    },
+    "RCA": {
+      "model": "XGBClassifier",
+      "roc_auc": 0.704,
+      "ci95": [
+        0.561,
+        0.827
+      ],
+      "acc": 0.639,
+      "prec": 0.514,
+      "rec": 0.783,
+      "f1": 0.621,
+      "brier": 0.212,
+      "thr": 0.325,
+      "n_test": 61
+    }
+  }
+}

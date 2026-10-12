@@ -49,7 +49,11 @@ def health():
 
 @app.get("/api/metrics")
 def api_metrics():
-    return METRICS
+    out = {"nested_5fold": METRICS}
+    fp = MODEL_DIR / "metrics_final.json"
+    if fp.exists():
+        out["locked"] = json.loads(fp.read_text())
+    return out
 
 @app.get("/api/samples")
 def api_samples():
