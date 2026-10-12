@@ -159,17 +159,6 @@ function HowToUse({ onOpen }) {
     </div>
   )
 }
-  const n = Number(v)
-  if (v == null || isNaN(n)) return <span style={{ fontSize: 12, color: '#64748b' }}>--</span>
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-      <div style={{ flex: 1, height: 8, background: '#eef2f7', borderRadius: 4 }}>
-        <div style={{ width: `${n * 100}%`, height: 8, borderRadius: 4, background: riskColor(n) }} />
-      </div>
-      <b style={{ fontSize: 13, minWidth: 92, textAlign: 'right' }}>{n.toFixed(3)} {n >= 0.7 ? 'High' : n >= 0.4 ? 'Mid' : 'Low'}</b>
-    </div>
-  )
-}
 
 function VesselDossier({ id, onPick, prob, thr, truth, waterAll, baseVal, model }) {
   const [all, setAll] = useState(false)
