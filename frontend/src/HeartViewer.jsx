@@ -69,19 +69,28 @@ function Thorax({ probs, selected, onSelect, layers, isolate, hasPred }) {
   const gltf = useLoader(GLTFLoader, '/anatomy/cardiotwin_anatomy.glb', (l) => { try { l.setMeshoptDecoder(MeshoptDecoder) } catch {} })
   const clone = useMemo(() => gltf.scene.clone(true), [gltf])
   useEffect(() => {
-    const GRAY = new THREE.Color('#a8b0bc')
     clone.traverse((o) => {
       for (const [k, names] of Object.entries(LAYER_GROUPS)) {
         if (names.includes(o.name)) o.visible = layers[k] !== false
       }
       if (!o.isMesh) return
+      if (!o.userData.orig) {
+        o.material = o.material.clone()
+        o.userData.orig = {
+          color: o.material.color.clone(), map: o.material.map || null,
+          emissiveMap: o.material.emissiveMap || null, emissive: o.material.emissive.clone(),
+          roughness: o.material.roughness, metalness: o.material.metalness,
+          vertexColors: o.material.vertexColors,
+        }
+      }
       const v = vesselOf(o.name || '')
-      o.material = o.material.clone()
       if (v) {
         const p = probs[v.toLowerCase()]
         o.material.color = new THREE.Color(riskColor(p))
         o.material.emissive = new THREE.Color(riskColor(p))
         o.material.vertexColors = false
+        o.material.map = null
+        o.material.emissiveMap = null
         const dimmed = isolate && selected && selected !== v
         o.material.emissiveIntensity = layers.focusBW ? (selected === v ? 0.9 : 0.45) : (selected === v ? 0.65 : 0.2)
         o.material.transparent = !!dimmed
@@ -90,13 +99,25 @@ function Thorax({ probs, selected, onSelect, layers, isolate, hasPred }) {
         o.userData.vessel = v
       } else if (layers.focusBW) {
         o.material.vertexColors = false
-        if (o.material.map) o.material.map = null
-        if (o.material.emissiveMap) o.material.emissiveMap = null
+        o.material.map = null
+        o.material.emissiveMap = null
         o.material.color.set('#b9bfc9')
         o.material.emissive = new THREE.Color('#000000')
         o.material.emissiveIntensity = 0
         o.material.roughness = 0.9
         o.material.metalness = 0
+        o.material.transparent = false
+        o.material.opacity = 1
+        o.material.needsUpdate = true
+      } else {
+        const r = o.userData.orig
+        o.material.vertexColors = r.vertexColors
+        o.material.map = r.map
+        o.material.emissiveMap = r.emissiveMap
+        o.material.color.copy(r.color)
+        o.material.emissive.copy(r.emissive)
+        o.material.roughness = r.roughness
+        o.material.metalness = r.metalness
         o.material.transparent = false
         o.material.opacity = 1
         o.material.needsUpdate = true
