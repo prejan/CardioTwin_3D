@@ -81,24 +81,50 @@ def predict(patient: dict):
 def explain(patient: dict):
     validate(patient)
     import shap
+    import numpy as np
     X = to_vector(patient)
     resp = {"waterfall": {}, "base_value": {}, "units": "probability points"}
+
+    def fitted_base(cal):
+        # sklearn-version-proof: calibrated_classifiers_[i].estimator / base_estimator
+        cands = []
+        for attr in ("calibrated_classifiers_", "calibrated_classifiers"):
+            if hasattr(cal, attr):
+                cands = list(getattr(cal, attr))
+                break
+        if cands:
+            c0 = cands[0]
+            for a in ("estimator", "base_estimator", "base_estimator_", "estimator_"):
+                if hasattr(c0, a):
+                    return getattr(c0, a)
+        for a in ("base_estimator", "estimator", "base_estimator_", "estimator_"):
+            if hasattr(cal, a):
+                return getattr(cal, a)
+        return None
+
     for t, m in MODELS.items():
         try:
-            est = m.calibrated_classifiers_[0].base_estimator
+            est = fitted_base(m)
+            if est is None:
+                raise RuntimeError("no fitted base estimator found")
             if hasattr(est, "coef_"):
-                import sklearn
                 ex = shap.LinearExplainer(est, X)
-                sv = ex.shap_values(X)[0]
+                raw = ex.shap_values(X)
             else:
                 ex = shap.TreeExplainer(est)
-                sv = ex.shap_values(X)[0]
-                if isinstance(sv, list): sv = sv[1] if len(sv) > 1 else sv[0]
-            idx = np.argsort(np.abs(sv))[::-1][:12]
-            resp["waterfall"][t] = [{"feature": FEATURES[i], "shap": round(float(sv[i]), 5), "value": float(X.iloc[0, i])} for i in idx]
-            resp["base_value"][t] = round(float(m.predict_proba(X)[0, 1] - sv.sum()), 4)
+                raw = ex.shap_values(X)
+            if isinstance(raw, list):
+                raw = raw[1] if len(raw) > 1 else raw[0]
+            sv = np.asarray(raw, dtype=float)
+            if sv.ndim == 3:
+                sv = sv[:, :, 1] if sv.shape[2] > 1 else sv[:, :, 0]
+            row = sv[0].ravel() if sv.ndim >= 2 else sv.ravel()
+            assert row.shape[0] == len(FEATURES), f"SHAP len {row.shape[0]} != {len(FEATURES)}"
+            order = np.argsort(np.abs(row))[::-1]
+            resp["waterfall"][t] = [{"feature": FEATURES[i], "shap": round(float(row[i]), 5), "value": float(X.iloc[0, i])} for i in order]
+            resp["base_value"][t] = round(float(m.predict_proba(X)[0, 1] - row.sum()), 4)
         except Exception as e:
-            resp["waterfall"][t] = [{"error": str(e)}]
+            resp["waterfall"][t] = [{"error": f"{type(e).__name__}: {str(e)[:180]}"}]
     return resp
 
 if DIST.exists():

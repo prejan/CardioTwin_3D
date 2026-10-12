@@ -142,7 +142,17 @@ export default function App() {
   }
 
   const probs = res ? { lad: res.lad_prob, lcx: res.lcx_prob, rca: res.rca_prob } : { lad: 0, lcx: 0, rca: 0 }
-  const fs = () => { const el = document.getElementById('heart-card'); if (el?.requestFullscreen) el.requestFullscreen() }
+  const fs = () => {
+    const el = document.getElementById('heart-card')
+    if (!el) return
+    if (document.fullscreenElement) document.exitFullscreen()
+    else if (el.requestFullscreen) el.requestFullscreen().then(() => setTimeout(() => window.dispatchEvent(new Event('resize')), 300)).catch(() => {})
+  }
+  useEffect(() => {
+    const h = () => setTimeout(() => window.dispatchEvent(new Event('resize')), 200)
+    document.addEventListener('fullscreenchange', h)
+    return () => document.removeEventListener('fullscreenchange', h)
+  }, [])
   const shown = samples.filter(s => !q || s.id.toLowerCase().includes(q.toLowerCase()) || s.truth.CAD.toLowerCase().includes(q.toLowerCase()))
 
   return (

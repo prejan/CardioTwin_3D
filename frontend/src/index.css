@@ -1,5 +1,7 @@
 * { box-sizing: border-box; }
 html, body, #root { margin: 0; padding: 0; width: 100%; min-height: 100vh; }
-body { background: #f8fafc; color: #0f172a; font-family: Inter, system-ui, sans-serif; overflow-x: hidden; }
+body { background: #eef2f7; color: #0f172a; font-family: Inter, system-ui, sans-serif; overflow-x: hidden; }
 #root { max-width: none; margin: 0; padding: 0; text-align: left; }
 canvas { display: block; }
+#heart-card:fullscreen { background: #fff; padding: 12px; overflow: auto; }
+#heart-card:fullscreen canvas { height: calc(100vh - 120px) !important; }
