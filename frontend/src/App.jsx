@@ -108,6 +108,7 @@ export default function App() {
   const [layers, setLayers] = useState({ skin: false, muscle: false, skeleton: false, lungs: false, diaphragm: false, beat: true, focusBW: true })
   const [loading, setLoading] = useState(false)
   const [status, setStatus] = useState('checking...')
+  const [expanded, setExpanded] = useState(false)
 
   useEffect(() => {
     fetch('http://localhost:8000/api/samples').then(r => r.json()).then(d => {
@@ -143,10 +144,11 @@ export default function App() {
 
   const probs = res ? { lad: res.lad_prob, lcx: res.lcx_prob, rca: res.rca_prob } : { lad: 0, lcx: 0, rca: 0 }
   const fs = () => {
-    const el = document.getElementById('heart-card')
-    if (!el) return
-    if (document.fullscreenElement) document.exitFullscreen()
-    else if (el.requestFullscreen) el.requestFullscreen().then(() => setTimeout(() => window.dispatchEvent(new Event('resize')), 300)).catch(() => {})
+    setExpanded(v => {
+      const nv = !v
+      setTimeout(() => window.dispatchEvent(new Event('resize')), 300)
+      return nv
+    })
   }
   useEffect(() => {
     const h = () => setTimeout(() => window.dispatchEvent(new Event('resize')), 200)
@@ -169,12 +171,12 @@ export default function App() {
       {tab === 'perf' ? <PerfPage metrics={metrics} /> : (
         <main style={{ display: 'grid', gridTemplateColumns: '1.45fr 1fr', gap: 12, padding: 12, maxWidth: 1440, margin: '0 auto', width: '100%', flex: 1, alignItems: 'start' }}>
           <section style={{ display: 'flex', flexDirection: 'column', gap: 12, minHeight: 0 }}>
-            <div id="heart-card" style={{ ...card, padding: 10, background: '#fff' }}>
+            <div id="heart-card" className={expanded ? 'expanded' : ''} style={{ ...card, padding: 10, background: '#fff' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
                 <b style={{ fontSize: 14 }}>Heart - LAD / LCX / RCA live, click vessel</b>
                 <div style={{ display: 'flex', gap: 10, fontSize: 12, alignItems: 'center' }}>
                   <label><input type="checkbox" checked={isolate} onChange={e => setIsolate(e.target.checked)} /> Isolate</label>
-                  <button onClick={fs} style={{ padding: '4px 12px', borderRadius: 7, border: '1px solid #0f766e', background: '#0f766e', color: 'white' }}>⛶ Full screen</button>
+                  <button onClick={fs} style={{ padding: '4px 12px', borderRadius: 7, border: '1px solid #0f766e', background: '#0f766e', color: 'white' }}>{expanded ? '✕ Exit' : '⛶ Full screen'}</button>
                 </div>
               </div>
               <HeartViewer probs={probs} selected={selected} onSelect={setSelected} layers={layers} isolate={isolate} hasPred={!!res} />
