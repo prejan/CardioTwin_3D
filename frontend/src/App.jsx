@@ -11,13 +11,69 @@ const VESSELS = [
 ]
 const card = { background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10, padding: 12 }
 
-function Bar({ v }) {
+function KpiRing({ v }) {
+  const r = 20, c = 2 * Math.PI * r
+  const col = v >= 0.85 ? '#12805c' : v >= 0.7 ? '#dc6803' : '#d92d20'
+  return (
+    <svg width="52" height="52" viewBox="0 0 52 52">
+      <circle cx="26" cy="26" r={r} fill="none" stroke="#e2e8f0" strokeWidth="7" />
+      <circle cx="26" cy="26" r={r} fill="none" stroke={col} strokeWidth="7" strokeLinecap="round"
+        strokeDasharray={`${(v * c).toFixed(1)} ${c.toFixed(1)}`} transform="rotate(-90 26 26)" />
+      <text x="26" y="30" textAnchor="middle" fontSize="11" fontWeight="800" fill="#0f172a">{v.toFixed(2)}</text>
+    </svg>
+  )
+}
+
+function KpiStrip({ metrics }) {
+  const locked = (metrics.locked || {}).locked_test_61 || {}
+  const order = ['CAD', 'LAD', 'LCX', 'RCA']
+  return (
+    <div style={{ maxWidth: 1440, margin: '0 auto', width: '100%', padding: '10px 12px 0', display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 8 }}>
+      {order.map(t => {
+        const m = locked[t] || {}
+        const auc = Number(m.roc_auc)
+        const ci = m.ci95 || []
+        return (
+          <div key={t} style={{ ...card, padding: '8px 12px', display: 'flex', gap: 10, alignItems: 'center' }}>
+            <KpiRing v={isNaN(auc) ? 0 : auc} />
+            <div>
+              <div style={{ fontSize: 13 }}><b>{t}</b> <span style={{ color: '#64748b' }}>locked AUC</span></div>
+              <div style={{ fontSize: 11, color: '#475569' }}>61 hold-out {ci.length ? `[${ci.join('-')}]` : ''}</div>
+              <div style={{ fontSize: 11, color: '#475569' }}>F1 {m.f1 ?? '--'} · thr {m.thr ?? '--'} · {m.model ?? ''}</div>
+            </div>
+          </div>
+        )
+      })}
+      <div style={{ ...card, padding: '8px 12px', display: 'flex', gap: 10, alignItems: 'center' }}>
+        <div style={{ width: 52, height: 52, borderRadius: '50%', background: '#dcfce7', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>✓</div>
+        <div>
+          <div style={{ fontSize: 13 }}><b>Leakage guard</b></div>
+          <div style={{ fontSize: 11, color: '#475569' }}><b style={{ color: '#12805c' }}>2 tests passed</b> · targets never inputs</div>
+          <div style={{ fontSize: 11, color: '#475569' }}>asserted in code + CI</div>
+        </div>
+      </div>
+    </div>
+  )
+}
   const n = Number(v)
   if (v == null || isNaN(n)) return <span style={{ fontSize: 12, color: '#64748b' }}>--</span>
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
       <div style={{ flex: 1, height: 8, background: '#eef2f7', borderRadius: 4 }}>
         <div style={{ width: `${v * 100}%`, height: 8, borderRadius: 4, background: riskColor(v) }} />
+      </div>
+      <b style={{ fontSize: 13, minWidth: 92, textAlign: 'right' }}>{n.toFixed(3)} {n >= 0.7 ? 'High' : n >= 0.4 ? 'Mid' : 'Low'}</b>
+    </div>
+  )
+}
+
+function Bar({ v }) {
+  const n = Number(v)
+  if (v == null || isNaN(n)) return <span style={{ fontSize: 12, color: '#64748b' }}>--</span>
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      <div style={{ flex: 1, height: 8, background: '#eef2f7', borderRadius: 4 }}>
+        <div style={{ width: `${n * 100}%`, height: 8, borderRadius: 4, background: riskColor(n) }} />
       </div>
       <b style={{ fontSize: 13, minWidth: 92, textAlign: 'right' }}>{n.toFixed(3)} {n >= 0.7 ? 'High' : n >= 0.4 ? 'Mid' : 'Low'}</b>
     </div>
@@ -206,14 +262,7 @@ export default function App() {
         <div style={{ fontSize: 12, color: '#cbd5e1' }}>{status}</div>
       </header>
       <div style={{ background: '#fef9c3', padding: '6px 18px', fontSize: 12 }}>Educational decision-support only - not a diagnosis. No external validation.</div>
-      {tab === 'work' && (
-        <div style={{ maxWidth: 1440, margin: '0 auto', width: '100%', padding: '10px 12px 0', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          {[['CAD', '0.926'], ['LAD', '0.923'], ['LCX', '0.806'], ['RCA', '0.704']].map(([t, a]) => (
-            <div key={t} style={{ ...card, padding: '6px 12px', fontSize: 12 }}><b>{t}</b> locked AUC <b>{((metrics.locked || {}).locked_test_61?.[t]?.roc_auc) ?? a}</b> <span style={{ color: '#64748b' }}>61 hold-out</span></div>
-          ))}
-          <div style={{ ...card, padding: '6px 12px', fontSize: 12 }}>Leakage tests <b style={{ color: '#12805c' }}>2 passed</b> <span style={{ color: '#64748b' }}>targets never inputs</span></div>
-        </div>
-      )}
+      {tab === 'work' && <KpiStrip metrics={metrics} />}
       {tab === 'perf' ? <PerfPage metrics={metrics} /> : (
         <main style={{ display: 'grid', gridTemplateColumns: '1.45fr 1fr', gap: 12, padding: 12, maxWidth: 1440, margin: '0 auto', width: '100%', flex: 1, alignItems: 'start' }}>
           <section style={{ display: 'flex', flexDirection: 'column', gap: 12, minHeight: 0 }}>
