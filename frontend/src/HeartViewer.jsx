@@ -134,9 +134,9 @@ function Thorax({ probs, selected, onSelect, layers, isolate, hasPred }) {
   )
 }
 
-export default function HeartViewer({ probs, selected, onSelect, layers, isolate, hasPred }) {
+export default function HeartViewer({ probs, selected, onSelect, layers, isolate, hasPred, tall }) {
   return (
-    <Canvas camera={{ position: [0.15, 0.3, 3.4] }} style={{ height: 500, background: 'linear-gradient(180deg,#ffffff,#e9eff6)', borderRadius: 12, border: '1px solid #e2e8f0' }}>
+    <Canvas camera={{ position: [0.15, 0.3, tall ? 2.3 : 3.4] }} style={{ height: tall ? 'calc(100vh - 150px)' : 500, background: 'linear-gradient(180deg,#ffffff,#e9eff6)', borderRadius: 12, border: '1px solid #e2e8f0' }}>
       <ambientLight intensity={1.15} />
       <directionalLight position={[4, 5, 6]} intensity={1.6} />
       <hemisphereLight args={['#ffffff', '#cbd5e1', 0.6]} />

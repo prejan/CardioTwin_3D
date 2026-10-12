@@ -179,8 +179,8 @@ export default function App() {
                   <button onClick={fs} style={{ padding: '4px 12px', borderRadius: 7, border: '1px solid #0f766e', background: '#0f766e', color: 'white' }}>{expanded ? '✕ Exit' : '⛶ Full screen'}</button>
                 </div>
               </div>
-              <HeartViewer probs={probs} selected={selected} onSelect={setSelected} layers={layers} isolate={isolate} hasPred={!!res} />
-              <div style={{ display: 'flex', gap: 12, marginTop: 8, fontSize: 12, flexWrap: 'wrap' }}>
+              <HeartViewer probs={probs} selected={selected} onSelect={setSelected} layers={layers} isolate={isolate} hasPred={!!res} tall={expanded} />
+              <div style={{ display: 'flex', gap: 10, marginTop: 8, fontSize: 12, flexWrap: 'wrap', userSelect: 'none', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, padding: '6px 10px' }}>
                 <label><input type="checkbox" checked={layers.lungs} onChange={e => setLayers({ ...layers, lungs: e.target.checked })} /> Lungs</label>
                 <label><input type="checkbox" checked={layers.skeleton} onChange={e => setLayers({ ...layers, skeleton: e.target.checked })} /> Ribs</label>
                 <label><input type="checkbox" checked={layers.skin} onChange={e => setLayers({ ...layers, skin: e.target.checked })} /> Skin</label>
