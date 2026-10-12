@@ -110,9 +110,7 @@ export default function App() {
       if (d[0]) {
         setFull(d[0]); setPid(d[0].id)
         const f = {}; Object.keys(RANGES).forEach(k => { if (d[0].features[k] !== undefined) f[k] = d[0].features[k] })
-        const nf = { ...form, ...f }
-        setForm(nf)
-        setTimeout(() => predict(nf, d[0]), 600)
+        setForm(prev => ({ ...prev, ...f }))
       }
     }).catch(() => setSamples([]))
     fetch('http://localhost:8000/api/metrics').then(r => r.json()).then(setMetrics).catch(() => {})
