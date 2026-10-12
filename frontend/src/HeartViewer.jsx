@@ -90,6 +90,8 @@ function Thorax({ probs, selected, onSelect, layers, isolate, hasPred }) {
         o.userData.vessel = v
       } else if (layers.focusBW) {
         o.material.vertexColors = false
+        if (o.material.map) o.material.map = null
+        if (o.material.emissiveMap) o.material.emissiveMap = null
         o.material.color.set('#b9bfc9')
         o.material.emissive = new THREE.Color('#000000')
         o.material.emissiveIntensity = 0
