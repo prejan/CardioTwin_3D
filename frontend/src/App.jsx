@@ -145,9 +145,14 @@ function VesselDossier({ id, onPick, prob, thr, truth, waterAll, baseVal, model 
 function PerfPage({ metrics }) {
   const order = ['CAD', 'LAD', 'LCX', 'RCA']
   const [curves, setCurves] = useState({ roc: {}, calibration: {} })
-  useEffect(() => {
-    fetch('http://localhost:8000/api/curves').then(r => r.json()).then(setCurves).catch(() => {})
-  }, [])
+  const [curveErr, setCurveErr] = useState('')
+  const loadCurves = () => {
+    fetch('http://localhost:8000/api/curves')
+      .then(async r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json() })
+      .then(d => { setCurves(d); setCurveErr(Object.keys(d.roc || {}).length ? '' : 'empty response') })
+      .catch(e => setCurveErr(String(e.message || e)))
+  }
+  useEffect(() => { loadCurves() }, [])
   const nest = metrics.nested_5fold || metrics
   const locked = (metrics.locked || {}).locked_test_61 || {}
   const row = (k, fmt) => (
@@ -185,7 +190,10 @@ function PerfPage({ metrics }) {
       </div>
       <div style={{ display: 'flex', gap: 12, marginTop: 12, flexWrap: 'wrap' }}>
         {!Object.keys(curves.roc || {}).length && (
-          <p style={{ fontSize: 12, color: '#b42318' }}>No curve data - restart backend (needs /api/curves from latest main) then refresh.</p>
+          <p style={{ fontSize: 12, color: '#b42318' }}>
+            No curve data {curveErr ? `(${curveErr})` : ''} - backend is up (curl gets 200), so this browser fetch failed.
+            <button onClick={loadCurves} style={{ marginLeft: 8, padding: '3px 10px', borderRadius: 6, border: '1px solid #0f766e', background: '#0f766e', color: 'white' }}>Retry curves</button>
+          </p>
         )}
         <CurveChart title="ROC curves" xlabel="False positive rate" ylabel="True positive rate" series={curves.roc || {}} />
         <CurveChart title="Calibration (closer to diagonal is better)" xlabel="Predicted probability" ylabel="Observed frequency" series={curves.calibration || {}} />
