@@ -12,13 +12,14 @@ const VESSELS = [
 const card = { background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10, padding: 12 }
 
 function Bar({ v }) {
-  if (v == null) return <span style={{ fontSize: 12, color: '#64748b' }}>--</span>
+  const n = Number(v)
+  if (v == null || isNaN(n)) return <span style={{ fontSize: 12, color: '#64748b' }}>--</span>
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
       <div style={{ flex: 1, height: 8, background: '#eef2f7', borderRadius: 4 }}>
         <div style={{ width: `${v * 100}%`, height: 8, borderRadius: 4, background: riskColor(v) }} />
       </div>
-      <b style={{ fontSize: 13, minWidth: 92, textAlign: 'right' }}>{v.toFixed(3)} {v >= 0.7 ? 'High' : v >= 0.4 ? 'Mid' : 'Low'}</b>
+      <b style={{ fontSize: 13, minWidth: 92, textAlign: 'right' }}>{n.toFixed(3)} {n >= 0.7 ? 'High' : n >= 0.4 ? 'Mid' : 'Low'}</b>
     </div>
   )
 }
@@ -26,19 +27,23 @@ function Bar({ v }) {
 function VesselDossier({ id, prob, thr, truth, waterAll, baseVal, model }) {
   const [all, setAll] = useState(false)
   const v = VESSELS.find(x => x.id === id)
-  const list = waterAll?.[id.toLowerCase()] || []
+  const raw = waterAll?.[id.toLowerCase()] || []
+  const list = raw.filter(w => w && typeof w.shap === 'number' && isFinite(w.shap))
+  const err = raw.find(w => w && w.error)
   const tot = list.reduce((s, w) => s + Math.abs(w.shap || 0), 0) || 1
   const rows = (all ? list : list.slice(0, 12)).map(w => ({ ...w, pct: Math.abs(w.shap) / tot * 100 }))
   const up = [...list].sort((a, b) => b.shap - a.shap).filter(w => w.shap > 0).slice(0, 3)
   const dn = [...list].sort((a, b) => a.shap - b.shap).filter(w => w.shap < 0).slice(0, 3)
-  const fv = (w) => `${Number(w.value).toFixed(w.value % 1 ? 1 : 0)}${UNITS[w.feature] ? ' ' + UNITS[w.feature] : ''}`
+  const fv = (w) => { const n = Number(w.value); const s = isNaN(n) ? String(w.value ?? '') : n.toFixed(n % 1 ? 1 : 0); return `${s}${UNITS[w.feature] ? ' ' + UNITS[w.feature] : ''}` }
+  const p = Number(prob); const t = Number(thr)
   return (
     <div style={{ ...card }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <b style={{ fontSize: 14 }}>{id} dossier - {(prob ?? 0).toFixed(3)} vs thr {(thr ?? 0.5).toFixed(2)} {truth ? `(angio ${truth})` : ''}</b>
+        <b style={{ fontSize: 14 }}>{id} dossier - {isNaN(p) ? '--' : p.toFixed(3)} vs thr {isNaN(t) ? '0.50' : t.toFixed(2)} {truth ? `(angio ${truth})` : ''}</b>
         <button onClick={() => setAll(!all)} style={{ fontSize: 12, padding: '4px 10px', borderRadius: 6, border: '1px solid #cbd5e1', background: '#f8fafc' }}>{all ? 'Top 12' : 'Show all'}</button>
       </div>
-      <p style={{ fontSize: 12, color: '#475569' }}>{v.name}: {v.terr} Exact SHAP of the {model || 'calibrated'} model, avg {(baseVal ?? 0).toFixed(2)}. % = share of absolute contribution. Probability is calibrated.</p>
+      <p style={{ fontSize: 12, color: '#475569' }}>{v.name}: {v.terr} Exact SHAP of the {model || 'calibrated'} model, avg {isNaN(Number(baseVal)) ? '--' : Number(baseVal).toFixed(2)}. % = share of absolute contribution. Probability is calibrated.</p>
+      {err && <p style={{ fontSize: 12, color: '#b42318' }}>Explain note: {String(err.error).slice(0, 160)}</p>}
       {!!up.length && <p style={{ fontSize: 12 }}><b>Pushing up:</b> {up.map(w => `${w.feature} (${fv(w)})`).join(', ')}</p>}
       {!!dn.length && <p style={{ fontSize: 12 }}><b>Pulling down:</b> {dn.map(w => `${w.feature} (${fv(w)})`).join(', ')}</p>}
       <div style={{ fontSize: 11, display: 'flex', justifyContent: 'space-between', color: '#64748b' }}><span>← lowers</span><span>raises →</span></div>
@@ -49,7 +54,7 @@ function VesselDossier({ id, prob, thr, truth, waterAll, baseVal, model }) {
             <div style={{ position: 'absolute', left: '50%', top: 0, bottom: 0, width: 1, background: '#cbd5e1' }} />
             <div style={{ position: 'absolute', top: 0, bottom: 0, borderRadius: 4, background: w.shap >= 0 ? '#d92d20' : '#12805c', left: w.shap >= 0 ? '50%' : `${50 - Math.min(50, w.pct / 2)}%`, width: `${Math.min(50, w.pct / 2)}%` }} />
           </div>
-          <b style={{ width: 92, textAlign: 'right', color: w.shap >= 0 ? '#b42318' : '#12805c' }}>{w.shap >= 0 ? '+' : ''}{w.shap.toFixed(4)} ({w.pct.toFixed(1)}%)</b>
+          <b style={{ width: 92, textAlign: 'right', color: w.shap >= 0 ? '#b42318' : '#12805c' }}>{w.shap >= 0 ? '+' : ''}{Number(w.shap).toFixed(4)} ({Number(w.pct).toFixed(1)}%)</b>
         </div>
       ))}
       {!rows.length && <p style={{ fontSize: 12, color: '#64748b' }}>Run Predict.</p>}
