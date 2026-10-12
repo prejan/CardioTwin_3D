@@ -81,13 +81,16 @@ function Thorax({ probs, selected, onSelect, layers, isolate, hasPred }) {
         const p = probs[v.toLowerCase()]
         o.material.color = new THREE.Color(riskColor(p))
         o.material.emissive = new THREE.Color(riskColor(p))
+        o.material.vertexColors = false
         const dimmed = isolate && selected && selected !== v
         o.material.emissiveIntensity = layers.focusBW ? (selected === v ? 0.9 : 0.45) : (selected === v ? 0.65 : 0.2)
         o.material.transparent = !!dimmed
         o.material.opacity = dimmed ? 0.18 : 1
+        o.material.needsUpdate = true
         o.userData.vessel = v
       } else if (layers.focusBW) {
-        o.material.color.set('#a8b0bc')
+        o.material.vertexColors = false
+        o.material.color.set('#b9bfc9')
         o.material.emissive = new THREE.Color('#000000')
         o.material.emissiveIntensity = 0
         o.material.roughness = 0.9
