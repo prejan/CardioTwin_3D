@@ -42,6 +42,7 @@ const GROUPS = [
   { id: 'lab', title: 'Laboratory', fields: ['FBS', 'CR', 'TG', 'LDL', 'HDL', 'BUN', 'ESR', 'HB', 'K', 'Na', 'WBC', 'Lymph', 'Neut', 'PLT'] },
   { id: 'echo', title: 'Echocardiography', fields: ['EF-TTE', 'Region RWMA', 'VHD'] },
 ]
+const YESNO_01 = ['DM', 'HTN', 'Current Smoker', 'EX-Smoker', 'FH', 'Edema', 'Typical Chest Pain', 'Q Wave', 'St Elevation', 'St Depression', 'Tinversion']
 const CATS = {
   'Sex': ['Male', 'Fmale'], 'Obesity': ['N', 'Y'], 'CRF': ['N', 'Y'], 'CVA': ['N', 'Y'],
   'Airway disease': ['N', 'Y'], 'Thyroid Disease': ['N', 'Y'], 'CHF': ['N', 'Y'], 'DLP': ['N', 'Y'],
@@ -468,6 +469,11 @@ export default function App() {
                         {CATS[f] ? (
                           <select value={form[f] ?? ''} onChange={e => setForm({ ...form, [f]: e.target.value })} style={{ width: '100%', padding: 5 }}>
                             {CATS[f].map(o => <option key={o} value={o}>{o}</option>)}
+                          </select>
+                        ) : YESNO_01.includes(f) ? (
+                          <select value={Number(form[f] ?? 0)} onChange={e => setForm({ ...form, [f]: Number(e.target.value) })} style={{ width: '100%', padding: 5 }}>
+                            <option value={0}>No</option>
+                            <option value={1}>Yes</option>
                           </select>
                         ) : (
                           <input type="number" min={NUM_BOUNDS[f]?.[0]} max={NUM_BOUNDS[f]?.[1]} value={form[f] ?? ''} onChange={e => setForm({ ...form, [f]: e.target.value })} style={{ width: '100%', padding: 5 }} />
