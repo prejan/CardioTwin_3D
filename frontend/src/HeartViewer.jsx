@@ -47,8 +47,7 @@ function vesselOf(name) {
   return null
 }
 
-// In-3D pills, spread outside the silhouette so they never stack
-const SPREAD = { LAD: [-0.62, 0.62, 0.6], LCX: [1.05, 0.1, 0.5], RCA: [-1.05, 0.05, 0.5] }
+// In-3D pills, spread outside the silhouette so they never stack (positions below)
 
 function Pill3D({ id, prob, selected, onSelect, position }) {
   return (
