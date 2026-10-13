@@ -1,6 +1,6 @@
 import { Suspense, useMemo, useEffect, useRef, Component } from 'react'
 import { Canvas, useFrame, useLoader } from '@react-three/fiber'
-import { OrbitControls, Html } from '@react-three/drei'
+import { OrbitControls } from '@react-three/drei'
 import * as THREE from 'three'
 import { GLTFLoader } from 'three-stdlib'
 import { MeshoptDecoder } from 'meshopt-decoder'
@@ -47,25 +47,7 @@ function vesselOf(name) {
   return null
 }
 
-function Pill({ id, prob, selected, onSelect, position }) {
-  return (
-    <Html position={position} center distanceFactor={6} zIndexRange={[30, 10]} style={{ pointerEvents: 'auto' }}>
-      <button
-        onClick={(e) => { e.stopPropagation(); onSelect(id) }}
-        style={{
-          background: selected === id ? '#0f172a' : 'rgba(255,255,255,0.96)', color: selected === id ? 'white' : '#0f172a',
-          border: `2px solid ${riskColor(prob)}`, borderRadius: 999, padding: '2px 9px',
-          fontSize: 11, fontWeight: 800, cursor: 'pointer', whiteSpace: 'nowrap',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.2)', transform: selected === id ? 'scale(1.1)' : 'scale(1)',
-        }}
-      >
-        {id} {(prob ?? 0).toFixed(2)}
-      </button>
-    </Html>
-  )
-}
-
-function Thorax({ probs, selected, onSelect, layers, isolate, hasPred }) {
+function Thorax({ probs, selected, onSelect, layers, isolate }) {
   const gltf = useLoader(GLTFLoader, '/anatomy/cardiotwin_anatomy.glb', (l) => { try { l.setMeshoptDecoder(MeshoptDecoder) } catch {} })
   const clone = useMemo(() => gltf.scene.clone(true), [gltf])
   useEffect(() => {
@@ -127,9 +109,6 @@ function Thorax({ probs, selected, onSelect, layers, isolate, hasPred }) {
   return (
     <Beating beat={layers.beat}>
       <primitive object={clone} onClick={(e) => { e.stopPropagation(); const v = e.object?.userData?.vessel; if (v) onSelect(v) }} />
-      {hasPred && Object.entries(SPREAD).map(([id, pos]) => (
-        <Pill key={id} id={id} prob={probs[id.toLowerCase()]} selected={selected} onSelect={onSelect} position={pos} />
-      ))}
     </Beating>
   )
 }

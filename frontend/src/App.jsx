@@ -61,6 +61,7 @@ const NUM_BOUNDS = {
 }
 const UNITS = { Age: 'years', BP: 'mmHg', PR: 'bpm', LDL: 'mg/dL', HDL: 'mg/dL', FBS: 'mg/dL', TG: 'mg/dL', 'EF-TTE': '%', Weight: 'kg', Length: 'cm', BMI: 'kg/m2', ESR: 'mm/h', HB: 'g/dL', CR: 'mg/dL', BUN: 'mg/dL', K: 'mEq/L', Na: 'mEq/L', WBC: 'cells/µL', Lymph: '%', Neut: '%', PLT: '1000/µL' }
 const VESSELS = [
+  { id: 'CAD', name: 'Overall coronary artery disease', terr: 'Any major vessel ≥50% narrowed. The headline number; vessels below localize it.' },
   { id: 'LAD', name: 'Left Anterior Descending', terr: 'Front wall + apex. Proximal disease threatens a large territory.' },
   { id: 'LCX', name: 'Left Circumflex', terr: 'Side + back wall. Often silent until lateral ischemia.' },
   { id: 'RCA', name: 'Right Coronary', terr: 'Right side + bottom wall and conduction system.' },
@@ -182,7 +183,7 @@ function VesselDossier({ id, onPick, prob, thr, truth, waterAll, baseVal, model 
     <div style={{ ...card }}>
       <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
         {['CAD', 'LAD', 'LCX', 'RCA'].map(x => (
-          <button key={x} onClick={() => onPick(x === 'CAD' ? null : x)} title={x === 'CAD' ? 'Overall (3D shows vessels)' : `Show ${x}`}
+          <button key={x} onClick={() => onPick(x)} title={x === 'CAD' ? 'Overall (3D shows vessels)' : `Show ${x}`}
             style={{ padding: '5px 14px', borderRadius: 999, border: '1px solid #cbd5e1', background: id === x ? '#0f766e' : '#fff', color: id === x ? '#fff' : '#0f172a', fontWeight: 700, fontSize: 12 }}>
             {x}
           </button>
@@ -282,6 +283,7 @@ function PerfPage({ metrics }) {
           </table>
         </div>
         <p style={{ fontSize: 12, color: '#475569' }}>Platt cross-fitted, Youden thresholds on other patients' OOF. Leakage: LAD/LCX/RCA/Cath never inputs (tests/test_leakage.py, 2 passed). LCX/RCA moderate by data limits. Single-centre, no external validation.</p>
+        <p style={{ fontSize: 11, color: '#64748b' }}>Data: Extension of Z-Alizadeh Sani, UCI ML Repository (CC BY 4.0). Anatomy: BodyParts3D, Database Center for Life Science (CC BY-SA 2.1 JP); derived meshes redistributed under the same licence. App code is original.</p>
       </div>
     </div>
   )
@@ -395,7 +397,20 @@ export default function App() {
                   <button onClick={() => window.print()} style={{ padding: '4px 12px', borderRadius: 7, border: '1px solid #cbd5e1', background: '#fff' }}>⎙ Report</button>
                 </div>
               </div>
-              <HeartViewer key={(expanded ? 'full' : 'normal') + view + (dark ? '-d' : '-l')} probs={probs} selected={selected} onSelect={setSelected} layers={layers} isolate={isolate} hasPred={!!res} tall={expanded} view={view} dark={dark} />
+              <HeartViewer key={(expanded ? 'full' : 'normal') + view + (dark ? '-d' : '-l')} probs={probs} selected={selected} onSelect={setSelected} layers={layers} isolate={isolate} tall={expanded} view={view} dark={dark} />
+              <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
+                {[['CAD', res?.cad_prob], ['LAD', res?.lad_prob], ['LCX', res?.lcx_prob], ['RCA', res?.rca_prob]].map(([id, p]) => (
+                  <button key={id} onClick={() => setSelected(id)}
+                    style={{
+                      flex: 1, minWidth: 110, padding: '7px 6px', borderRadius: 999, cursor: 'pointer',
+                      background: selected === id ? '#0f172a' : '#fff', color: selected === id ? '#fff' : '#0f172a',
+                      border: `2px solid ${riskColor(p)}`, fontWeight: 800, fontSize: 13,
+                      boxShadow: selected === id ? '0 4px 12px rgba(0,0,0,0.25)' : '0 1px 4px rgba(0,0,0,0.12)',
+                    }}>
+                    {id} {p == null ? '--' : Number(p).toFixed(2)}
+                  </button>
+                ))}
+              </div>
               <div style={{ display: 'flex', gap: 10, marginTop: 8, fontSize: 12, flexWrap: 'wrap', userSelect: 'none', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, padding: '6px 10px' }}>
                 <label><input type="checkbox" checked={layers.lungs} onChange={e => setLayers({ ...layers, lungs: e.target.checked })} /> Lungs</label>
                 <label><input type="checkbox" checked={layers.skeleton} onChange={e => setLayers({ ...layers, skeleton: e.target.checked })} /> Ribs</label>
@@ -405,7 +420,7 @@ export default function App() {
                 <label><input type="checkbox" checked={layers.focusBW} onChange={e => setLayers({ ...layers, focusBW: e.target.checked })} /> Vessel focus B&W</label>
               </div>
             </div>
-            <VesselDossier id={selected} onPick={(x) => { if (x) setSelected(x) }} prob={res?.[selected.toLowerCase() + '_prob']} thr={res?.thresholds?.[selected.toLowerCase()]} truth={full?.truth?.[selected]} waterAll={waterAll} baseVal={baseAll[selected.toLowerCase()]} model={metrics[selected]?.model} />
+            <VesselDossier id={selected} onPick={setSelected} prob={(selected === 'CAD' ? res?.cad_prob : res?.[selected.toLowerCase() + '_prob'])} thr={res?.thresholds?.[selected.toLowerCase()]} truth={full?.truth?.[selected]} waterAll={waterAll} baseVal={baseAll[selected.toLowerCase()]} model={metrics[selected]?.model} />
           </section>
           <section style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div style={card}>
@@ -453,7 +468,7 @@ export default function App() {
           </section>
         </main>
       )}
-      <footer style={{ textAlign: 'center', fontSize: 11, color: '#64748b', padding: 8 }}>BodyParts3D CC BY-SA 2.1 JP + UCI Sani ext CC BY 4.0. Original code.</footer>
+      <footer style={{ textAlign: 'center', fontSize: 11, color: '#64748b', padding: 8 }}>Educational decision-support prototype - not a diagnosis. Never replaces angiography or clinician judgement.</footer>
     </div>
   )
 }
