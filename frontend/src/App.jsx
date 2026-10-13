@@ -302,7 +302,18 @@ export default function App() {
   const [selected, setSelected] = useState('LAD')
   const [isolate, setIsolate] = useState(true)
   const [q, setQ] = useState('')
-  const [layers, setLayers] = useState({ skin: false, muscle: false, skeleton: false, lungs: false, diaphragm: false, beat: true, focusBW: true })
+  const [layers, setLayers] = useState({ skin: false, muscle: false, skeleton: false, lungs: false, diaphragm: false, beat: true, focusBW: true, paint: true })
+  const lifestyle = {
+    smoker: form['Current Smoker'], exSmoker: form['EX-Smoker'], airway: form['Airway disease'],
+    bp: form.BP, htn: form.HTN, ldl: form.LDL, ef: form['EF-TTE'],
+  }
+  const paintNotes = []
+  if (layers.paint !== false) {
+    if (String(lifestyle.smoker) === '1' || String(lifestyle.exSmoker) === '1' || lifestyle.airway === 'Y') paintNotes.push('smoker lungs tinted')
+    if (Number(lifestyle.bp) >= 140 || String(lifestyle.htn) === '1') paintNotes.push('heart enlarged illustration (BP)')
+    if (Number(lifestyle.ldl) >= 160) paintNotes.push('extra vessel glow (LDL)')
+    if (Number(lifestyle.ef) < 40) paintNotes.push('weaker beat + dilation (low EF)')
+  }
   const [loading, setLoading] = useState(false)
   const [status, setStatus] = useState('checking...')
   const [help, setHelp] = useState(() => { try { return !localStorage.getItem('ct3d-hide-help') } catch { return true } })
@@ -397,7 +408,8 @@ export default function App() {
                   <button onClick={() => window.print()} style={{ padding: '4px 12px', borderRadius: 7, border: '1px solid #cbd5e1', background: '#fff' }}>⎙ Report</button>
                 </div>
               </div>
-              <HeartViewer key={(expanded ? 'full' : 'normal') + view + (dark ? '-d' : '-l')} probs={probs} selected={selected} onSelect={setSelected} layers={layers} isolate={isolate} hasPred={!!res} tall={expanded} view={view} dark={dark} />
+              <HeartViewer key={(expanded ? 'full' : 'normal') + view + (dark ? '-d' : '-l')} probs={probs} selected={selected} onSelect={setSelected} layers={layers} isolate={isolate} hasPred={!!res} tall={expanded} view={view} dark={dark} lifestyle={lifestyle} />
+              {!!paintNotes.length && <p style={{ fontSize: 11, color: '#475569', margin: '6px 0 0' }}>Condition painting (illustrative, not imaging): {paintNotes.join(' · ')}.</p>}
               <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
                 {[['CAD', res?.cad_prob], ['LAD', res?.lad_prob], ['LCX', res?.lcx_prob], ['RCA', res?.rca_prob]].map(([id, p]) => (
                   <button key={id} onClick={() => setSelected(id)}
@@ -418,6 +430,7 @@ export default function App() {
                 <label><input type="checkbox" checked={layers.muscle} onChange={e => setLayers({ ...layers, muscle: e.target.checked })} /> Muscle</label>
                 <label><input type="checkbox" checked={layers.beat} onChange={e => setLayers({ ...layers, beat: e.target.checked })} /> Beat 72</label>
                 <label><input type="checkbox" checked={layers.focusBW} onChange={e => setLayers({ ...layers, focusBW: e.target.checked })} /> Vessel focus B&W</label>
+                <label title="Tint organs by this patient's risk factors (illustrative only)"><input type="checkbox" checked={layers.paint !== false} onChange={e => setLayers({ ...layers, paint: e.target.checked })} /> Condition painting</label>
               </div>
             </div>
             <VesselDossier id={selected} onPick={setSelected} prob={(selected === 'CAD' ? res?.cad_prob : res?.[selected.toLowerCase() + '_prob'])} thr={res?.thresholds?.[selected.toLowerCase()]} truth={full?.truth?.[selected]} waterAll={waterAll} baseVal={baseAll[selected.toLowerCase()]} model={metrics[selected]?.model} />

@@ -30,11 +30,12 @@ class Guard extends Component {
   render() { return this.state.bad ? this.props.fallback : this.props.children }
 }
 
-function Beating({ beat, children }) {
+function Beating({ beat, amp, base, children }) {
   const ref = useRef()
+  const a = amp ?? 0.03, b = base ?? 1
   useFrame(({ clock }) => {
     if (!ref.current) return
-    const s = beat ? 1 + 0.03 * Math.sin(clock.getElapsedTime() * 2 * Math.PI * 72 / 60) : 1
+    const s = b * (beat ? 1 + a * Math.sin(clock.getElapsedTime() * 2 * Math.PI * 72 / 60) : 1)
     ref.current.scale.setScalar(s)
   })
   return <group ref={ref}>{children}</group>
@@ -67,13 +68,20 @@ function Pill3D({ id, prob, selected, onSelect, position }) {
   )
 }
 
-function Thorax({ probs, selected, onSelect, layers, isolate, hasPred }) {
+function Thorax({ probs, selected, onSelect, layers, isolate, hasPred, lifestyle }) {
   const gltf = useLoader(GLTFLoader, '/anatomy/cardiotwin_anatomy.glb', (l) => { try { l.setMeshoptDecoder(MeshoptDecoder) } catch {} })
   const clone = useMemo(() => gltf.scene.clone(true), [gltf])
+  const paint = layers.paint !== false
+  const smoker = paint && lifestyle && (String(lifestyle.smoker) === '1' || String(lifestyle.exSmoker) === '1' || lifestyle.airway === 'Y')
+  const hyper = paint && lifestyle && (Number(lifestyle.bp) >= 140 || String(lifestyle.htn) === '1')
+  const plaque = paint && lifestyle && Number(lifestyle.ldl) >= 160
+  const weakPump = paint && lifestyle && Number(lifestyle.ef) < 40
+  const beatBase = (hyper ? 1.05 : 1) * (weakPump ? 1.06 : 1)
+  const beatAmp = weakPump ? 0.015 : 0.03
   useEffect(() => {
     clone.traverse((o) => {
       for (const [k, names] of Object.entries(LAYER_GROUPS)) {
-        if (names.includes(o.name)) o.visible = layers[k] !== false
+        if (names.includes(o.name)) o.visible = layers[k] !== false || (smoker && k === 'lungs')
       }
       if (!o.isMesh) return
       if (!o.userData.orig) {
@@ -94,11 +102,22 @@ function Thorax({ probs, selected, onSelect, layers, isolate, hasPred }) {
         o.material.map = null
         o.material.emissiveMap = null
         const dimmed = isolate && selected && selected !== v
-        o.material.emissiveIntensity = layers.focusBW ? (selected === v ? 0.9 : 0.45) : (selected === v ? 0.65 : 0.2)
+        o.material.emissiveIntensity = (layers.focusBW ? (selected === v ? 0.9 : 0.45) : (selected === v ? 0.65 : 0.2)) + (plaque ? 0.2 : 0)
         o.material.transparent = !!dimmed
         o.material.opacity = dimmed ? 0.18 : 1
         o.material.needsUpdate = true
         o.userData.vessel = v
+      } else if (smoker && (o.name === 'Lung_L' || o.name === 'Lung_R')) {
+        o.material.vertexColors = false
+        o.material.map = null
+        o.material.emissiveMap = null
+        o.material.color.set('#5a463c')
+        o.material.emissive = new THREE.Color('#1a0f08')
+        o.material.emissiveIntensity = 0.25
+        o.material.roughness = 1
+        o.material.transparent = true
+        o.material.opacity = 0.92
+        o.material.needsUpdate = true
       } else if (layers.focusBW) {
         o.material.vertexColors = false
         o.material.map = null
@@ -127,7 +146,7 @@ function Thorax({ probs, selected, onSelect, layers, isolate, hasPred }) {
     })
   }, [clone, probs, selected, layers, isolate])
   return (
-    <Beating beat={layers.beat}>
+    <Beating beat={layers.beat} amp={beatAmp} base={beatBase}>
       <primitive object={clone} onClick={(e) => { e.stopPropagation(); const v = e.object?.userData?.vessel; if (v) onSelect(v) }} />
       {hasPred && Object.entries(SPREAD).map(([id, pos]) => (
         <Pill3D key={id} id={id} prob={probs[id.toLowerCase()]} selected={selected} onSelect={onSelect} position={pos} />
@@ -137,7 +156,7 @@ function Thorax({ probs, selected, onSelect, layers, isolate, hasPred }) {
 }
 
 const VIEW_POS = { front: [0.15, 0.3, 3.4], left: [3.2, 0.4, 0.6], top: [0.1, 3.2, 0.8] }
-export default function HeartViewer({ probs, selected, onSelect, layers, isolate, hasPred, tall, view, dark }) {
+export default function HeartViewer({ probs, selected, onSelect, layers, isolate, hasPred, tall, view, dark, lifestyle }) {
   const cam = VIEW_POS[view] || VIEW_POS.front
   return (
     <Canvas camera={{ position: tall ? [cam[0], cam[1], cam[2] * 0.72] : cam }} style={{ height: tall ? 'calc(100vh - 150px)' : 500, background: dark ? 'linear-gradient(180deg,#0b1220,#16233c)' : 'linear-gradient(180deg,#ffffff,#e9eff6)', borderRadius: 12, border: dark ? '1px solid #26314a' : '1px solid #e2e8f0' }}>
@@ -146,7 +165,7 @@ export default function HeartViewer({ probs, selected, onSelect, layers, isolate
       <hemisphereLight args={['#ffffff', '#cbd5e1', 0.6]} />
       <Guard fallback={null}>
         <Suspense fallback={null}>
-          <Thorax probs={probs} selected={selected} onSelect={onSelect} layers={layers} isolate={isolate} hasPred={hasPred} />
+          <Thorax probs={probs} selected={selected} onSelect={onSelect} layers={layers} isolate={isolate} hasPred={hasPred} lifestyle={lifestyle} />
         </Suspense>
       </Guard>
       <OrbitControls enablePan={false} minDistance={1.6} maxDistance={7} />
