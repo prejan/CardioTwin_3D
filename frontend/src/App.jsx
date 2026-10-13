@@ -468,7 +468,7 @@ export default function App() {
           </section>
         </main>
       )}
-      <footer style={{ textAlign: 'center', fontSize: 11, color: '#64748b', padding: 8 }}>Educational decision-support prototype - not a diagnosis. Never replaces angiography or clinician judgement.</footer>
+      <footer style={{ textAlign: 'center', fontSize: 11, color: '#64748b', padding: 8 }}>(C) Akatsuki</footer>
     </div>
   )
 }
