@@ -397,7 +397,7 @@ export default function App() {
                   <button onClick={() => window.print()} style={{ padding: '4px 12px', borderRadius: 7, border: '1px solid #cbd5e1', background: '#fff' }}>⎙ Report</button>
                 </div>
               </div>
-              <HeartViewer key={(expanded ? 'full' : 'normal') + view + (dark ? '-d' : '-l')} probs={probs} selected={selected} onSelect={setSelected} layers={layers} isolate={isolate} tall={expanded} view={view} dark={dark} />
+              <HeartViewer key={(expanded ? 'full' : 'normal') + view + (dark ? '-d' : '-l')} probs={probs} selected={selected} onSelect={setSelected} layers={layers} isolate={isolate} hasPred={!!res} tall={expanded} view={view} dark={dark} />
               <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
                 {[['CAD', res?.cad_prob], ['LAD', res?.lad_prob], ['LCX', res?.lcx_prob], ['RCA', res?.rca_prob]].map(([id, p]) => (
                   <button key={id} onClick={() => setSelected(id)}
