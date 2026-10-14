@@ -47,6 +47,19 @@ npm run dev
 
 Pick a patient (P-001…) → **Predict** → vessels recolor, dossier fills. Click any vessel, pill or card - all stay in sync.
 
+### Verify it works
+
+- `http://localhost:8000/health` → `loaded: ["cad","lad","lcx","rca"]`
+- `http://localhost:8000/api/samples` → 303 patients
+- First Predict takes ~30s (SHAP explains 4 models) - later ones are faster
+
+### Troubleshooting
+
+- `uvicorn: No module named 'backend'` → run from repo root, not from `backend\`
+- Port 8000 busy (`WinError 10013`) → `netstat -ano | findstr :8000` then `taskkill /PID <n> /F`, or use `--port 8001` (update fetch URLs in `frontend/src/App.jsx`)
+- `npm not recognized` → install Node 20+ and reopen the terminal
+- Blank page → hard refresh Ctrl+Shift+R; keep backend running (frontend calls it live)
+
 ### Single URL (for judging / video)
 
 ```powershell
