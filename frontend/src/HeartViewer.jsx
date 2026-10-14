@@ -76,8 +76,8 @@ function Thorax({ probs, selected, onSelect, layers, isolate, hasPred, lifestyle
   const hyper = paint && lifestyle && (Number(lifestyle.bp) >= 140 || String(lifestyle.htn) === '1')
   const plaque = paint && lifestyle && Number(lifestyle.ldl) >= 160
   const weakPump = paint && lifestyle && Number(lifestyle.ef) < 40
-  const beatBase = (hyper ? 1.05 : 1) * (weakPump ? 1.06 : 1)
-  const beatAmp = weakPump ? 0.015 : 0.03
+  const beatBase = (hyper ? 1.1 : 1) * (weakPump ? 1.12 : 1)
+  const beatAmp = weakPump ? 0.012 : 0.03
   useEffect(() => {
     clone.traverse((o) => {
       for (const [k, names] of Object.entries(LAYER_GROUPS)) {
@@ -102,7 +102,7 @@ function Thorax({ probs, selected, onSelect, layers, isolate, hasPred, lifestyle
         o.material.map = null
         o.material.emissiveMap = null
         const dimmed = isolate && selected && selected !== v
-        o.material.emissiveIntensity = (layers.focusBW ? (selected === v ? 0.9 : 0.45) : (selected === v ? 0.65 : 0.2)) + (plaque ? 0.2 : 0)
+        o.material.emissiveIntensity = (layers.focusBW ? (selected === v ? 0.9 : 0.45) : (selected === v ? 0.65 : 0.2)) + (plaque ? 0.55 : 0)
         o.material.transparent = !!dimmed
         o.material.opacity = dimmed ? 0.18 : 1
         o.material.needsUpdate = true
@@ -144,7 +144,7 @@ function Thorax({ probs, selected, onSelect, layers, isolate, hasPred, lifestyle
         o.material.needsUpdate = true
       }
     })
-  }, [clone, probs, selected, layers, isolate])
+  }, [clone, probs, selected, layers, isolate, lifestyle, smoker, hyper, plaque, weakPump])
   return (
     <Beating beat={layers.beat} amp={beatAmp} base={beatBase}>
       <primitive object={clone} onClick={(e) => { e.stopPropagation(); const v = e.object?.userData?.vessel; if (v) onSelect(v) }} />
