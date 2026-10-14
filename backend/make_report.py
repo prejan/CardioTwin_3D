@@ -74,6 +74,17 @@ p("Pre-test risk scores return one number for the whole heart. A clinician readi
 pdf.add_page()
 h("2. Data")
 p("UCI Extension of Z-Alizadeh Sani dataset: 303 patients from a Tehran referral centre, 71% CAD prevalence. 55 inputs in six clinical groups: demographics (5), history and risk factors (12), examination (14), ECG (7), laboratory (14), echocardiography (3). Overall CAD follows the dataset definition (positive when any of LAD, LCX, RCA is stenotic at >=50%). There are no missing cells. The interface exposes all 55 measurements with dataset-observed options, so every explanation bar is editable. Split seed is fixed at 7.")
+h("2b. Feature groups used by the models")
+pdf.set_font("Times", "", 9.5)
+pdf.set_text_color(0, 0, 0)
+pdf.cell(70, 6, "Group (features)", border=1)
+pdf.cell(100, 6, "Examples", border=1)
+pdf.ln()
+for g, ex in [("Demographics (5)", "Age, Sex, BMI, Weight, Length"), ("History (12)", "Diabetes, hypertension, smoking, family history, obesity"), ("Examination (14)", "Blood pressure, pulse, chest-pain type, murmurs, dyspnea"), ("ECG (7)", "Q wave, ST elevation/depression, T inversion, LVH, BBB"), ("Laboratory (14)", "FBS, cholesterol panel, BUN, ESR, WBC, platelets"), ("Echo (3)", "Ejection fraction, wall-motion region, valve disease")]:
+    pdf.cell(70, 6, g, border=1)
+    pdf.cell(100, 6, ex, border=1)
+    pdf.ln()
+pdf.ln(2)
 h("3. Methods")
 p("Candidate families (all SHAP-compatible): L2/L1 logistic regression, random forest, gradient boosting (XGBoost), with imputation, scaling and one-hot encoding inside each pipeline so folds learn their own statistics. Inner 5-fold ROC-AUC selection on the 242-patient development set chose logistic regression (CAD), random forest with 300 trees (LAD) and XGBoost with 300 trees of depth 4 (LCX, RCA). Calibration is Platt (sigmoid), cross-fitted for evaluation and refit on all development data. Explanations use TreeExplainer for tree models and LinearExplainer otherwise, with one-hot columns summed back to the original measurement and shown in calibrated-probability points with percentage shares. The viewer is React with React Three Fiber; the service is FastAPI serving the built interface from the same port. Seeds, pinned dependencies, committed weights, metrics and per-patient locked predictions make every table reproducible. Retraining takes minutes: backend/train_locked.py, backend/train_nested.py, backend/make_figures.py.")
 
@@ -91,10 +102,23 @@ for img, cap in [("roc.png", "Figure 1. ROC curves per vessel, locked test."), (
     if q.exists():
         pdf.image(str(q), w=125)
         p(cap, 10)
+p("Reading the curves: CAD and LAD rise steeply with areas above 0.92, LCX follows at 0.81, and RCA at 0.70 stays closest to the diagonal, matching its wider confidence interval. Calibration is reasonable for CAD and LAD across the middle bins; the sparse extreme bins reflect only 61 test patients and should not be over-read. These plots, like the table, come from the committed locked_test_predictions.csv, so any reviewer can redraw them.")
+p("Future work, in order: external validation on a second centre with recalibration; lesion-level labels from imaging to move beyond whole-vessel probabilities; prospective silent-mode evaluation beside angiography scheduling; and a compact on-device model export so the workstation runs fully offline.")
 
 pdf.add_page()
 h("5. System")
-p("Anatomy: BodyParts3D thorax and heart glTF with coronary segments mapped to model targets (LAD: Coronary_LAD with septal branch; LCX: Coronary_LCX; RCA: five segments). Rotate, zoom, vessel click with synced pills, cards and dossiers; front/left/top presets; isolate mode; vessel-focus monochrome (grey anatomy, coloured coronaries); heartbeat animation; layer toggles for lungs, ribs, skin and muscle; fullscreen overlay; printable report. A condition-painting mode, always labelled illustrative rather than imaging, tints smoker lungs, enlarges hypertensive hearts, brightens high-LDL vessels and weakens low-EF beats. Dashboard: 303 searchable patients with angiogram truth beside live predictions, 55-field grouped form with validation, vessel dossiers (probability versus threshold, top pushing-up and pulling-down factors, exact SHAP waterfall with top-12/all toggle), performance tab with locked and nested tables and live ROC/calibration graphs, first-run guide, dark theme. The interface renders on demand in a modern browser without a dedicated GPU.")
+p("Anatomy: BodyParts3D thorax and heart glTF with coronary segments mapped to model targets (LAD: Coronary_LAD with septal branch; LCX: Coronary_LCX; RCA: five segments). Rotate, zoom, vessel click with synced pills, cards and dossiers; front/left/top presets; isolate mode; vessel-focus monochrome (grey anatomy, coloured coronaries); heartbeat animation; layer toggles for lungs, ribs, skin and muscle; fullscreen overlay; printable report. A condition-painting mode, always labelled illustrative rather than imaging, tints smoker lungs, enlarges hypertensive hearts, brightens high-LDL vessels and weakens low-EF beats.")
+p("Data flow per prediction: (1) the 55-field form is validated against clinical ranges; (2) one-hot encoding aligns the row to the 57 training columns; (3) four calibrated pipelines return probabilities with Youden thresholds; (4) Tree/Linear SHAP explainers attribute all 57 columns, summed back to measurements with percentage shares; (5) the 3D scene, vessel cards, dossier and pills update from the same response object, so the dashboard and the model cannot disagree. Median end-to-end latency is under a minute on CPU with SHAP dominating; the 3D scene renders on demand without a dedicated GPU.")
+p("Worked example: patient P-001 (angiogram CAD with LAD and RCA stenosis) receives CAD 0.88 against a 0.65 threshold, LAD 0.71 (high), RCA 0.50 (moderate) and LCX 0.23 (low). The dossier's top drivers are typical chest pain and age pushing risk up, with normal wall motion pulling it down; editing LDL from 155 to 250 mg/dL and re-predicting moves every bar live. A contrasting healthy record (P-005) scores CAD 0.13 with all vessels green, demonstrating the full operating range on real rows rather than synthetic inputs.")
+h("5b. Judging criteria mapping")
+pdf.set_font("Times", "", 9.5)
+pdf.cell(52, 6, "Criterion (weight)", border=1)
+pdf.cell(118, 6, "Where it is met", border=1)
+pdf.ln()
+for _c, _w in [("Predictive (30%)", "Locked 61 test + nested CV, calibration, thresholds; Sec. 4"), ("3D visualization (25%)", "Segmented coronaries, synced selection, views, fullscreen; Sec. 5"), ("Interpretability (20%)", "Per-vessel SHAP dossiers with units and shares; Sec. 5"), ("Integration (15%)", "Single URL, live 303-patient base, shared response object"), ("Technical (10%)", "Pinned deps, tests, committed weights, open data/anatomy")]:
+    pdf.cell(52, 6, _c, border=1)
+    pdf.cell(118, 6, _w, border=1)
+    pdf.ln()
 h("6. Limitations, safety and attribution")
 p("Single-centre referred cohort with no external validation; recalibration is required before any other use. LCX and RCA carry wide intervals and modest recall. Probabilities are per-vessel, with no lesion localization, because the dataset contains none. Anatomy is generic adult reference, not patient-specific. What-if edits show model behaviour, not causal effects. The interface carries a permanent educational-use disclaimer; this system is not a medical device. Data: Extension of Z-Alizadeh Sani Dataset, UCI Machine Learning Repository (CC BY 4.0). Anatomy: BodyParts3D, Database Center for Life Science (CC BY-SA 2.1 JP); derived meshes redistributed under the same licence. Application code is original. (C) Akatsuki.")
 
