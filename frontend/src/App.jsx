@@ -236,7 +236,7 @@ function PerfPage({ metrics, dark }) {
   )
   return (
     <div style={{ maxWidth: 1100, margin: '0 auto', padding: 14, width: '100%' }}>
-      <div style={C}>
+      <div style={c}>
         <b>Locked test (61 never seen, seed 7) - the number to trust</b>
         <div style={{ overflowX: 'auto' }}>
           <table style={{ fontSize: 12, borderCollapse: 'collapse', width: '100%' }}>
