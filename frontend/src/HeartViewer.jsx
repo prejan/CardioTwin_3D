@@ -1,4 +1,4 @@
-import { Suspense, useMemo, useEffect, useRef, Component } from 'react'
+import { Suspense, useMemo, useEffect, useRef, useState, Component } from 'react'
 import { Canvas, useFrame, useLoader } from '@react-three/fiber'
 import { OrbitControls, Html } from '@react-three/drei'
 import * as THREE from 'three'
@@ -71,6 +71,7 @@ function Pill3D({ id, prob, selected, onSelect, position }) {
 function Thorax({ probs, selected, onSelect, layers, isolate, hasPred, lifestyle }) {
   const gltf = useLoader(GLTFLoader, '/anatomy/cardiotwin_anatomy.glb', (l) => { try { l.setMeshoptDecoder(MeshoptDecoder) } catch {} })
   const clone = useMemo(() => gltf.scene.clone(true), [gltf])
+  const [anchors, setAnchors] = useState({})
   const paint = layers.paint !== false
   const smoker = paint && lifestyle && (String(lifestyle.smoker) === '1' || String(lifestyle.exSmoker) === '1' || lifestyle.airway === 'Y')
   const hyper = paint && lifestyle && (Number(lifestyle.bp) >= 140 || String(lifestyle.htn) === '1')
@@ -79,6 +80,9 @@ function Thorax({ probs, selected, onSelect, layers, isolate, hasPred, lifestyle
   const beatBase = (hyper ? 1.1 : 1) * (weakPump ? 1.12 : 1)
   const beatAmp = weakPump ? 0.012 : 0.03
   useEffect(() => {
+    const boxes = { LAD: new THREE.Box3(), LCX: new THREE.Box3(), RCA: new THREE.Box3() }
+    const has = { LAD: false, LCX: false, RCA: false }
+    const tmp = new THREE.Box3()
     clone.traverse((o) => {
       for (const [k, names] of Object.entries(LAYER_GROUPS)) {
         if (names.includes(o.name)) o.visible = layers[k] !== false || (smoker && k === 'lungs')
@@ -107,6 +111,13 @@ function Thorax({ probs, selected, onSelect, layers, isolate, hasPred, lifestyle
         o.material.opacity = dimmed ? 0.18 : 1
         o.material.needsUpdate = true
         o.userData.vessel = v
+        try {
+          tmp.setFromObject(o)
+          if (!tmp.isEmpty()) {
+            if (!has[v]) { boxes[v].copy(tmp); has[v] = true }
+            else boxes[v].union(tmp)
+          }
+        } catch {}
       } else if (smoker && (o.name === 'Lung_L' || o.name === 'Lung_R')) {
         o.material.vertexColors = false
         o.material.map = null
@@ -144,11 +155,34 @@ function Thorax({ probs, selected, onSelect, layers, isolate, hasPred, lifestyle
         o.material.needsUpdate = true
       }
     })
+    const next = {}
+    const put = (id, v) => { next[id] = [v.x, v.y, v.z] }
+    if (has.LAD) {
+      const c = new THREE.Vector3()
+      boxes.LAD.getCenter(c)
+      put('LAD', new THREE.Vector3(c.x * 0.4 - 0.15, c.y + 0.75, c.z + 0.35))
+    }
+    ;['LCX', 'RCA'].forEach(id => {
+      if (!has[id]) return
+      const c = new THREE.Vector3()
+      boxes[id].getCenter(c)
+      const side = c.x >= 0 ? 1 : -1
+      put(id, new THREE.Vector3(c.x + side * 0.85, c.y + 0.1, c.z + 0.3))
+    })
+    setAnchors(prev => {
+      const keys = Object.keys(next)
+      if (keys.length === Object.keys(prev).length && keys.every(k => {
+        const a = prev[k], b = next[k]
+        return a && Math.abs(a[0] - b[0]) < 1e-4 && Math.abs(a[1] - b[1]) < 1e-4 && Math.abs(a[2] - b[2]) < 1e-4
+      })) return prev
+      return next
+    })
   }, [clone, probs, selected, layers, isolate, lifestyle, smoker, hyper, plaque, weakPump])
+  const pillPos = Object.keys(anchors).length ? anchors : SPREAD
   return (
     <Beating beat={layers.beat} amp={beatAmp} base={beatBase}>
       <primitive object={clone} onClick={(e) => { e.stopPropagation(); const v = e.object?.userData?.vessel; if (v) onSelect(v) }} />
-      {hasPred && Object.entries(SPREAD).map(([id, pos]) => (
+      {hasPred && Object.entries(pillPos).map(([id, pos]) => (
         <Pill3D key={id} id={id} prob={probs[id.toLowerCase()]} selected={selected} onSelect={onSelect} position={pos} />
       ))}
     </Beating>

@@ -67,13 +67,9 @@ const VESSELS = [
   { id: 'LCX', name: 'Left Circumflex', terr: 'Side + back wall. Often silent until lateral ischemia.' },
   { id: 'RCA', name: 'Right Coronary', terr: 'Right side + bottom wall and conduction system.' },
 ]
-let THEME = 'light'
-try { if (localStorage.getItem('ct3d-theme') === 'dark') THEME = 'dark' } catch {}
-const card = {
-  get background() { return THEME === 'dark' ? '#111c30' : '#fff' },
-  get border() { return THEME === 'dark' ? '1px solid #26314a' : '1px solid #e2e8f0' },
-  borderRadius: 10, padding: 12,
-}
+const cardLight = { background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10, padding: 12 }
+const cardDark = { background: '#111c30', border: '1px solid #26314a', borderRadius: 10, padding: 12, color: '#e2e8f0' }
+const card = cardLight
 
 function KpiRing({ v }) {
   const r = 20, c = 2 * Math.PI * r
@@ -88,7 +84,8 @@ function KpiRing({ v }) {
   )
 }
 
-function KpiStrip({ metrics }) {
+function KpiStrip({ metrics, dark }) {
+  const c = dark ? cardDark : cardLight
   const locked = (metrics.locked || {}).locked_test_61 || {}
   const order = ['CAD', 'LAD', 'LCX', 'RCA']
   return (
@@ -98,22 +95,22 @@ function KpiStrip({ metrics }) {
         const auc = Number(m.roc_auc)
         const ci = m.ci95 || []
         return (
-          <div key={t} style={{ ...card, padding: '8px 12px', display: 'flex', gap: 10, alignItems: 'center' }}>
+          <div key={t} style={{ ...c, padding: '8px 12px', display: 'flex', gap: 10, alignItems: 'center' }}>
             <KpiRing v={isNaN(auc) ? 0 : auc} />
             <div>
-              <div style={{ fontSize: 13 }}><b>{t}</b> <span style={{ color: '#64748b' }}>locked AUC</span></div>
-              <div style={{ fontSize: 11, color: '#475569' }}>61 hold-out {ci.length ? `[${ci.join('-')}]` : ''}</div>
-              <div style={{ fontSize: 11, color: '#475569' }}>F1 {m.f1 ?? '--'} · thr {m.thr ?? '--'} · {m.model ?? ''}</div>
+              <div style={{ fontSize: 13 }}><b>{t}</b> <span style={{ color: dark ? '#94a3b8' : '#64748b' }}>locked AUC</span></div>
+              <div style={{ fontSize: 11, color: dark ? '#94a3b8' : '#475569' }}>61 hold-out {ci.length ? `[${ci.join('-')}]` : ''}</div>
+              <div style={{ fontSize: 11, color: dark ? '#94a3b8' : '#475569' }}>F1 {m.f1 ?? '--'} · thr {m.thr ?? '--'} · {m.model ?? ''}</div>
             </div>
           </div>
         )
       })}
-      <div style={{ ...card, padding: '8px 12px', display: 'flex', gap: 10, alignItems: 'center' }}>
+      <div style={{ ...c, padding: '8px 12px', display: 'flex', gap: 10, alignItems: 'center' }}>
         <div style={{ width: 52, height: 52, borderRadius: '50%', background: '#dcfce7', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>✓</div>
         <div>
           <div style={{ fontSize: 13 }}><b>Leakage guard</b></div>
-          <div style={{ fontSize: 11, color: '#475569' }}><b style={{ color: '#12805c' }}>2 tests passed</b> · targets never inputs</div>
-          <div style={{ fontSize: 11, color: '#475569' }}>asserted in code + CI</div>
+          <div style={{ fontSize: 11, color: dark ? '#94a3b8' : '#475569' }}><b style={{ color: '#12805c' }}>2 tests passed</b> · targets never inputs</div>
+          <div style={{ fontSize: 11, color: dark ? '#94a3b8' : '#475569' }}>asserted in code + CI</div>
         </div>
       </div>
     </div>
@@ -139,7 +136,8 @@ function Shot({ src, alt }) {
   return <img src={src} alt={alt} onError={() => setOk(false)} style={{ width: '100%', borderRadius: 8, border: '1px solid #e2e8f0', marginTop: 6 }} />
 }
 
-function HowToUse({ onOpen }) {
+function HowToUse({ onOpen, dark }) {
+  const c = dark ? cardDark : cardLight
   const steps = [
     { t: '1. Pick any of 303 real patients', d: 'Search P-001… or filter CAD/Normal. Vitals load from the dataset row; angiogram truth shows beside. Nothing is dummy - every row predicts live.', img: '/howto/step1-patients.png' },
     { t: '2. Press Predict', d: 'Four calibrated models (CAD + LAD/LCX/RCA) run on all 55 measurements. 3D vessels recolor, bars fill, SHAP dossier fills. Green <0.40, orange <0.70, red above.', img: '/howto/step2-predict.png' },
@@ -149,7 +147,7 @@ function HowToUse({ onOpen }) {
   ]
   return (
     <div style={{ maxWidth: 900, margin: '0 auto', padding: 16, width: '100%' }}>
-      <div style={{ ...card, padding: 18 }}>
+      <div style={{ ...c, padding: 18 }}>
         <h2 style={{ margin: '4px 0' }}>How to use CardioTwin 3D (2 minutes)</h2>
         <p style={{ fontSize: 13, color: '#475569' }}>Drop screenshots in <code>frontend/public/howto/step1-patients.png … step5-perf.png</code> and they appear under each step automatically. Educational decision-support only - not a diagnosis.</p>
         {steps.map((s, i) => (
@@ -168,7 +166,8 @@ function HowToUse({ onOpen }) {
   )
 }
 
-function VesselDossier({ id, onPick, prob, thr, truth, waterAll, baseVal, model }) {
+function VesselDossier({ id, onPick, prob, thr, truth, waterAll, baseVal, model, dark }) {
+  const c = dark ? cardDark : cardLight
   const [all, setAll] = useState(false)
   const v = VESSELS.find(x => x.id === id)
   const raw = waterAll?.[id.toLowerCase()] || []
@@ -181,7 +180,7 @@ function VesselDossier({ id, onPick, prob, thr, truth, waterAll, baseVal, model 
   const fv = (w) => { const n = Number(w.value); const s = isNaN(n) ? String(w.value ?? '') : n.toFixed(n % 1 ? 1 : 0); return `${s}${UNITS[w.feature] ? ' ' + UNITS[w.feature] : ''}` }
   const p = Number(prob); const t = Number(thr)
   return (
-    <div style={{ ...card }}>
+    <div style={{ ...c }}>
       <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
         {['CAD', 'LAD', 'LCX', 'RCA'].map(x => (
           <button key={x} onClick={() => onPick(x)} title={x === 'CAD' ? 'Overall (3D shows vessels)' : `Show ${x}`}
@@ -211,7 +210,8 @@ function VesselDossier({ id, onPick, prob, thr, truth, waterAll, baseVal, model 
   )
 }
 
-function PerfPage({ metrics }) {
+function PerfPage({ metrics, dark }) {
+  const c = dark ? cardDark : cardLight
   const order = ['CAD', 'LAD', 'LCX', 'RCA']
   const [curves, setCurves] = useState({ roc: {}, calibration: {} })
   const [curveErr, setCurveErr] = useState('')
@@ -236,7 +236,7 @@ function PerfPage({ metrics }) {
   )
   return (
     <div style={{ maxWidth: 1100, margin: '0 auto', padding: 14, width: '100%' }}>
-      <div style={card}>
+      <div style={C}>
         <b>Locked test (61 never seen, seed 7) - the number to trust</b>
         <div style={{ overflowX: 'auto' }}>
           <table style={{ fontSize: 12, borderCollapse: 'collapse', width: '100%' }}>
@@ -267,7 +267,7 @@ function PerfPage({ metrics }) {
         <CurveChart title="ROC curves" xlabel="False positive rate" ylabel="True positive rate" series={curves.roc || {}} />
         <CurveChart title="Calibration (closer to diagonal is better)" xlabel="Predicted probability" ylabel="Observed frequency" series={curves.calibration || {}} />
       </div>
-      <div style={{ ...card, marginTop: 12 }}>
+      <div style={{ ...c, marginTop: 12 }}>
         <b>Nested 5-fold OOF (all 303, development reference)</b>
         <div style={{ overflowX: 'auto' }}>
           <table style={{ fontSize: 12, borderCollapse: 'collapse', width: '100%' }}>
@@ -320,12 +320,13 @@ export default function App() {
   const [help, setHelp] = useState(() => { try { return !localStorage.getItem('ct3d-hide-help') } catch { return true } })
   const [expanded, setExpanded] = useState(false)
   const [view, setView] = useState('front')
-  const [dark, setDark] = useState(() => THEME === 'dark')
+  const C = dark ? cardDark : cardLight
+  const [dark, setDark] = useState(() => { try { return localStorage.getItem('ct3d-theme') === 'dark' } catch { return false } })
+  const C = dark ? cardDark : cardLight
   const toggleDark = () => {
     setDark(v => {
       const nv = !v
-      THEME = nv ? 'dark' : 'light'
-      try { localStorage.setItem('ct3d-theme', THEME) } catch {}
+      try { localStorage.setItem('ct3d-theme', nv ? 'dark' : 'light') } catch {}
       return nv
     })
   }
@@ -393,11 +394,11 @@ export default function App() {
         <div style={{ fontSize: 12, color: '#cbd5e1' }}>{status}</div>
       </header>
       <div style={{ background: '#fef9c3', padding: '6px 18px', fontSize: 12 }}>Educational decision-support only - not a diagnosis. No external validation.</div>
-      {tab === 'work' && <KpiStrip metrics={metrics} />}
-      {help ? <HowToUse onOpen={(stay) => { if (!stay) setHelp(false) }} /> : tab === 'perf' ? <PerfPage metrics={metrics} /> : (
+      {tab === 'work' && <KpiStrip metrics={metrics} dark={dark} />}
+      {help ? <HowToUse dark={dark} onOpen={(stay) => { if (!stay) setHelp(false) }} /> : tab === 'perf' ? <PerfPage metrics={metrics} dark={dark} /> : (
         <main style={{ display: 'grid', gridTemplateColumns: '1.45fr 1fr', gap: 12, padding: 12, maxWidth: 1440, margin: '0 auto', width: '100%', flex: 1, alignItems: 'start' }}>
           <section style={{ display: 'flex', flexDirection: 'column', gap: 12, minHeight: 0 }}>
-            <div id="heart-card" className={expanded ? 'expanded' : ''} style={{ ...card, padding: 10, background: '#fff' }}>
+            <div id="heart-card" className={expanded ? 'expanded' : ''} style={{ ...C, padding: 10 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
                 <b style={{ fontSize: 14 }}>Heart - LAD / LCX / RCA live, click vessel</b>
                 <div style={{ display: 'flex', gap: 10, fontSize: 12, alignItems: 'center' }}>
@@ -434,10 +435,10 @@ export default function App() {
                 <label title="Tint organs by this patient's risk factors (illustrative only)"><input type="checkbox" checked={layers.paint !== false} onChange={e => setLayers({ ...layers, paint: e.target.checked })} /> Condition painting</label>
               </div>
             </div>
-            <VesselDossier id={selected} onPick={setSelected} prob={(selected === 'CAD' ? res?.cad_prob : res?.[selected.toLowerCase() + '_prob'])} thr={res?.thresholds?.[selected.toLowerCase()]} truth={full?.truth?.[selected]} waterAll={waterAll} baseVal={baseAll[selected.toLowerCase()]} model={metrics[selected]?.model} />
+            <VesselDossier id={selected} onPick={setSelected} prob={(selected === 'CAD' ? res?.cad_prob : res?.[selected.toLowerCase() + '_prob'])} thr={res?.thresholds?.[selected.toLowerCase()]} truth={full?.truth?.[selected]} waterAll={waterAll} baseVal={baseAll[selected.toLowerCase()]} model={(metrics.nested_5fold || {})[selected]?.model} dark={dark} />
           </section>
           <section style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <div style={card}>
+            <div style={C}>
               <div style={{ display: 'flex', gap: 8 }}>
                 <b>Patient ({samples.length})</b>
                 <input value={q} onChange={e => setQ(e.target.value)} placeholder="Search P-001..." style={{ flex: 1, padding: 6, border: '1px solid #cbd5e1', borderRadius: 6 }} />
@@ -457,7 +458,7 @@ export default function App() {
                 </div>
               ))}
             </div>
-            <div style={card}>
+            <div style={C}>
               <b>All 55 measurements - every SHAP bar editable</b>
               <p style={{ fontSize: 11, color: '#475569' }}>Grouped like the clinical workup. Numerics validated, categories are dataset-observed options. Edit anything → Predict.</p>
               {GROUPS.map((g, gi) => (
