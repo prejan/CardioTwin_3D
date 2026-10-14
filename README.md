@@ -62,14 +62,7 @@ Pick a patient (P-001…) → **Predict** → vessels recolor, dossier fills. Cl
 
 ### Single URL (for judging / video)
 
-```powershell
-cd CardioTwin_3D\frontend
-npm run build
-cd ..
-.\venv\Scripts\Activate
-uvicorn backend.main:app --port 8000
-# everything at http://localhost:8000/
-```
+
 
 ## What the app does
 
