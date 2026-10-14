@@ -217,7 +217,7 @@ function PerfPage({ metrics, dark }) {
   const [curves, setCurves] = useState({ roc: {}, calibration: {} })
   const [curveErr, setCurveErr] = useState('')
   const loadCurves = () => {
-    fetch(API + '/api/curves'))
+    fetch(API + '/api/curves')
       .then(async r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json() })
       .then(d => { setCurves(d); setCurveErr(Object.keys(d.roc || {}).length ? '' : 'empty response') })
       .catch(e => setCurveErr(String(e.message || e)))
@@ -332,7 +332,7 @@ export default function App() {
   }
 
   useEffect(() => {
-    fetch(API + '/api/samples')).then(r => r.json()).then(d => {
+    fetch(API + '/api/samples').then(r => r.json()).then(d => {
       setSamples(d)
       if (d[0]) {
         setFull(d[0]); setPid(d[0].id)
@@ -340,8 +340,8 @@ export default function App() {
         setForm(prev => ({ ...prev, ...f }))
       }
     }).catch(() => setSamples([]))
-    fetch(API + '/api/metrics')).then(r => r.json()).then(setMetrics).catch(() => {})
-    fetch(API + '/health')).then(r => r.json()).then(h => setStatus(`Backend OK - ${(h.loaded || []).join(',')} | ${h.build || 'OLD-no-shapfix-RESTART'} | ${samples.length || 303} pts`)).catch(() => setStatus('Backend offline'))
+    fetch(API + '/api/metrics').then(r => r.json()).then(setMetrics).catch(() => {})
+    fetch(API + '/health').then(r => r.json()).then(h => setStatus(`Backend OK - ${(h.loaded || []).join(',')} | ${h.build || 'OLD-no-shapfix-RESTART'} | ${samples.length || 303} pts`)).catch(() => setStatus('Backend offline'))
   }, [])
 
   const predict = async (of = null, ofull = null) => {
@@ -354,9 +354,9 @@ export default function App() {
     try {
       const clean = { ...((ofull || full)?.features || {}), ...f0 }
       Object.keys(clean).forEach(k => { if (typeof clean[k] !== 'string') clean[k] = Number(clean[k]) })
-      const r = await fetch(API + '/predict'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(clean) }).then(async r => { if (!r.ok) { const j = await r.json().catch(() => ({})); throw new Error(j.detail || ('predict ' + r.status)) } return r.json() })
+      const r = await fetch(API + '/predict', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(clean) }).then(async r => { if (!r.ok) { const j = await r.json().catch(() => ({})); throw new Error(j.detail || ('predict ' + r.status)) } return r.json() })
       setRes(r)
-      const e = await fetch(API + '/explain'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(clean) }).then(r => r.json())
+      const e = await fetch(API + '/explain', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(clean) }).then(r => r.json())
       setWaterAll(e.waterfall || {})
       setBaseAll(e.base_value || {})
     } catch (err) { alert('Backend: ' + err.message) }
