@@ -320,7 +320,6 @@ export default function App() {
   const [help, setHelp] = useState(() => { try { return !localStorage.getItem('ct3d-hide-help') } catch { return true } })
   const [expanded, setExpanded] = useState(false)
   const [view, setView] = useState('front')
-  const C = dark ? cardDark : cardLight
   const [dark, setDark] = useState(() => { try { return localStorage.getItem('ct3d-theme') === 'dark' } catch { return false } })
   const C = dark ? cardDark : cardLight
   const toggleDark = () => {
