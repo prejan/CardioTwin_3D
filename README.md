@@ -115,4 +115,4 @@ docs/      figures/roc.png calibration.png
 
 ## Limitations (stated in-app and in report)
 
-Single-centre referred cohort, 71% CAD prevalence, no external validation; LCX/RCA moderate by data limits; whole-vessel probabilities (no lesion localization); generic anatomy, not patient-specific.
+Single-centre referred cohort, 71% CAD prevalence, no external validation; LCX/RCA moderate by data limits; whole-vessel probabilities (no lesion localization); generic anatomy, not patient-specific .
