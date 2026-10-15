@@ -2,6 +2,9 @@
 
 **Vessel-level coronary risk, painted on a segmented 3D heart - with every prediction explained.**
 
+- Demo video: https://youtu.be/hCE_6ahG_80
+- Live app: https://cardiotwin-3d-bcy.pages.dev (API: https://cardiotwin-3d.onrender.com)
+
 CardioTwin 3D predicts overall coronary artery disease (CAD) and stenosis of the LAD, LCX and RCA from 55 routine clinical, ECG, lab and echo measurements, maps each probability onto segmented BodyParts3D coronary meshes you can orbit and click, and explains every prediction with exact SHAP values. All 303 dataset patients are browsable; every number is computed live - nothing is hardcoded.
 
 > **Educational decision-support only - not a diagnosis.** Single referred cohort (303 patients), no external validation. Never replaces angiography or clinician judgement.
